@@ -160,8 +160,35 @@ export function extractProfile(): Profile {
 
     const photo = [...top.querySelectorAll('img')].find((i) =>
       /profile-displayphoto|profile-framedphoto/i.test(i.src));
-    profile.photo = photo ? { present: true, isDefault: /ghost/i.test(photo.src) } : { present: false };
+    profile.photo = photo
+      ? {
+          present: true,
+          isDefault: /ghost/i.test(photo.src),
+          // LinkedIn serves a framed avatar from a different path than a plain one.
+          hasFrame: /profile-framedphoto/i.test(photo.src),
+        }
+      : { present: false };
     observed.push('photo');
+
+    const topText = T(top);
+    // Location is the top-card paragraph that reads as a place and is not the
+    // current-company/school line.
+    profile.location =
+      paragraphs.find((t) => LOCATION_ISH.test(t) && !/·/.test(t) && t !== profile.headline) ?? '';
+    observed.push('location');
+
+    profile.contactInfoAvailable = /Contact info/i.test(topText);
+    observed.push('contactInfoAvailable');
+
+    if (/Open to work/i.test(topText)) {
+      profile.openToWork = {
+        active: true,
+        publicToAll: /Open to work\s*·\s*Everyone on LinkedIn/i.test(topText),
+      };
+    } else {
+      profile.openToWork = { active: false };
+    }
+    observed.push('openToWork');
 
     const banner = [...document.querySelectorAll('img')].find(looksLikeBanner);
     profile.banner = banner
@@ -184,18 +211,40 @@ export function extractProfile(): Profile {
     observed.push('experience');
   }
 
+  // --------------------------------------------------------------- education
+  const educationCard = card('education');
+  if (educationCard) {
+    const items = [...educationCard.querySelectorAll<HTMLElement>('li')];
+    if (items.length) {
+      profile.education = items.map((li) => {
+        const parts = [...li.querySelectorAll<HTMLElement>('p, span, h3')].map((n) => T(n)).filter(Boolean);
+        return { school: parts[0], degree: parts[1] };
+      });
+    } else {
+      // Same shape as the Skills card: no <li>, entries are anchors/paragraphs.
+      const EDU_META = /^Education$|^Show all|^[A-Z][a-z]{2}\s\d{4}\s*[–-]/;
+      const names = [...educationCard.querySelectorAll<HTMLElement>('a, h3')]
+        .map((n) => T(n))
+        .filter((t) => t && t.length < 90 && !EDU_META.test(t))
+        .filter((t, i, a) => a.indexOf(t) === i);
+      profile.education = names.map((school) => ({ school }));
+    }
+    observed.push('education');
+  }
+
   // ------------------------------------------------------------------ skills
   const skillsCard = card('skills');
   if (skillsCard) {
     const raw = T(skillsCard);
     const declared = Number(/Skills\s*\((\d+)\)/i.exec(raw)?.[1] ?? NaN);
-    const visible = [...skillsCard.querySelectorAll<HTMLElement>('li')]
-      .map((li) => T(li.querySelector('p, span, h3') ?? li))
-      .filter(Boolean);
-    // LinkedIn collapses this section behind "Show all": the count is truthful,
-    // the names are not all present. Record both rather than inventing names —
-    // synthetic placeholders end up quoted back at the user as advice.
-    profile.skills = visible;
+    // This card renders no <li>. Names are anchors/paragraphs interleaved with
+    // "N experiences at …" provenance rows and a "Show all" link.
+    const SKILL_META = /^\d+\s+experiences?\b|^Show all|^Skills\s*\(/i;
+    const names = [...skillsCard.querySelectorAll<HTMLElement>('a, p, h3')]
+      .map((n) => T(n))
+      .filter((t) => t && t.length < 60 && !SKILL_META.test(t))
+      .filter((t, i, a) => a.indexOf(t) === i);
+    profile.skills = names;
     if (Number.isFinite(declared)) profile.skillsDeclaredCount = declared;
     observed.push('skills');
   }
@@ -225,7 +274,14 @@ export function extractProfile(): Profile {
   // ---------------------------------------------------------------- activity
   const activityCard = card('activity');
   if (activityCard) {
-    const tokens = T(activityCard).match(/\b\d+\s?(?:m|h|d|w|mo|yr)\b/g) ?? [];
+    const text = T(activityCard);
+    // `textContent` runs adjacent elements together ("Visit my website" + "4mo"
+    // becomes "website4mo"), so a leading \b never matches. LinkedIn renders post
+    // timestamps as "4mo •", so anchor on that bullet; fall back to a looser scan
+    // only if the card carries no bullets at all.
+    const stamped = [...text.matchAll(/(\d+)\s?(mo|yr|[wdhm])\s*[•·]/gi)].map((m) => `${m[1]}${m[2]}`);
+    const loose = [...text.matchAll(/(?<!\d)(\d+)\s?(mo|yr|[wdhm])(?![a-z])/gi)].map((m) => `${m[1]}${m[2]}`);
+    const tokens = stamped.length ? stamped : loose;
     const days = tokens.map(relativeToDays).filter((d): d is number => d !== null);
     profile.activity = {
       lastPostDaysAgo: days.length ? Math.min(...days) : null,

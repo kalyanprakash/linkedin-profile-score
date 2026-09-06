@@ -35,6 +35,8 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'about.cta': 0.5,
       'activity.recency': 0.5,
       'activity.cadence': 0.3,
+      'profile.location': 1.6,
+      'education.present': 1.3,
     },
   },
 
@@ -55,6 +57,8 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'featured.present': 0.3,
       'activity.recency': 0.2,
       'activity.cadence': 0.1,
+      'profile.location': 1.6,
+      'education.present': 1.2,
     },
   },
 
@@ -74,6 +78,9 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'experience.description_coverage': 0.7,
       'skills.count': 0.6,
       'recommendations.count': 1.2,
+      'profile.location': 0.6,
+      'education.present': 0.4,
+      'profile.contact_info': 1.6,
     },
   },
 
@@ -93,6 +100,8 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'skills.count': 0.4,
       'skills.alignment': 0.4,
       'about.cta': 1.2,
+      'profile.location': 0.4,
+      'education.present': 0.3,
     },
   },
 
@@ -111,6 +120,9 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'experience.current_role_detail': 1.5,
       'recommendations.count': 1.4,
       'skills.count': 0.5,
+      'profile.location': 1.0,
+      'education.present': 0.5,
+      'profile.contact_info': 1.4,
     },
   },
 };

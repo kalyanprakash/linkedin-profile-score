@@ -74,6 +74,23 @@ const SENIORITY_TOKENS = new Set([
   'intern', 'deputy', 'global', 'regional', 'group', 'level', 'grade',
 ]);
 
+/**
+ * Substantive, searchable stems in a piece of text: domain nouns, with seniority
+ * words, stopwords and short tokens removed.
+ *
+ * Used instead of matching the headline against the person's own job title. That
+ * older approach measured self-consistency, not searchability, so replacing a
+ * generic "Title at Company" headline with a well-positioned one *lowered* the
+ * score — the rubric punishing the fix it should reward.
+ */
+export function substantiveStems(text: string): string[] {
+  return [...new Set(
+    contentTokens(text)
+      .filter((t) => t.length > 3 && !SENIORITY_TOKENS.has(t))
+      .map(stem),
+  )];
+}
+
 export function candidateTerms(profile: Profile): string[] {
   const titles = (profile.experience || []).map((e) => e.title || '').filter(Boolean);
   // Only the top skills. LinkedIn orders these, and the top of the list is what

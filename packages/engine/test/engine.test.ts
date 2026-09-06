@@ -6,7 +6,7 @@ import { PERSONAS } from '../src/personas.ts';
 import { ALL_RULES } from '../src/rules/index.ts';
 import { stem, termPresent, candidateTerms } from '../src/rules/util.ts';
 import type { PersonaId, Profile } from '../src/types.ts';
-import { kalyan, strong, empty, median } from './fixtures/profiles.ts';
+import { kalyan, kalyanLive, strong, empty, median } from './fixtures/profiles.ts';
 
 const PERSONA_IDS = Object.keys(PERSONAS) as PersonaId[];
 
@@ -92,11 +92,17 @@ test('ordering holds: strong > median > empty', () => {
 });
 
 test('a complete average profile outranks a barely-populated one', () => {
-  // Regression for the abstention bug: normalising over observed rules alone
-  // once made a mostly-invisible profile outscore a complete mediocre one.
+  // Regression for the abstention bug. Compared on `floor`, not the point
+  // estimate: the point estimate normalises over what was seen, so a profile with
+  // six observed fields is not on the same scale as a fully-read one. The floor —
+  // which charges every unread check as a miss — is the comparable number, and it
+  // is why `range` exists.
+  const complete = scoreProfile(median, 'job_search');
+  const partial = scoreProfile(kalyan, 'job_search');
+  assert.equal(partial.unobservedPoints > 0, true, 'fixture must be a partial extraction');
   assert.ok(
-    scoreProfile(median, 'job_search').score > scoreProfile(kalyan, 'job_search').score,
-    'median must outrank the blank-role profile',
+    complete.range.floor > partial.range.floor,
+    `median floor ${complete.range.floor} must exceed partial floor ${partial.range.floor}`,
   );
 });
 
@@ -226,4 +232,30 @@ test('candidate terms exclude seniority words from job titles', () => {
     assert.ok(!terms.includes(noise), `"${noise}" is rank, not expertise — should not be a candidate term`);
   }
   assert.ok(terms.includes('engineering'), 'the domain word should survive');
+});
+
+// ----------------------------------------------------------- observations
+
+test('observations are reported but never move the score', () => {
+  const withSignal: Profile = { ...kalyanLive };
+  const withoutSignal: Profile = {
+    ...kalyanLive,
+    photo: { ...kalyanLive.photo, hasFrame: false },
+    openToWork: { active: false },
+  };
+  for (const p of PERSONA_IDS) {
+    const a = scoreProfile(withSignal, p);
+    const b = scoreProfile(withoutSignal, p);
+    assert.equal(a.score, b.score, `${p}: an unscored observation changed the score`);
+  }
+  assert.ok(
+    scoreProfile(withSignal, 'job_search').observations.some((o) => o.id === 'observation.open_to_work'),
+    'the signal should still be reported',
+  );
+  assert.equal(scoreProfile(withoutSignal, 'job_search').observations.length, 0);
+});
+
+test('no rule prices a contested claim', () => {
+  // Guard: if a future rule scores the open-to-work signal, this fails.
+  assert.ok(!ALL_RULES.some((r) => /frame|open_to_work|opentowork/i.test(r.id)));
 });

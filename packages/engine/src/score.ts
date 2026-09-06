@@ -4,6 +4,7 @@ import {
 import { PERSONAS, DEFAULT_PERSONA } from './personas.ts';
 import { ALL_RULES } from './rules/index.ts';
 import { clamp01 } from './text.ts';
+import { observe } from './observations.ts';
 
 function band(score: number): ScoreReport['band'] {
   if (score < 40) return 'weak';
@@ -112,6 +113,7 @@ export function scoreProfile(profile: Profile, personaId: PersonaId = DEFAULT_PE
     abstained,
     topFixes,
     unobservedPoints: round1(rawUnobserved * scale),
+    observations: observe(profile),
   };
 }
 

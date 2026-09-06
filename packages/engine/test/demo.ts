@@ -36,6 +36,13 @@ function report(label: string, profile: Profile, personaId: PersonaId) {
     console.log(`         ${c.observed}`);
   }
 
+  if (r.observations.length) {
+    console.log('\nObserved, not scored');
+    for (const o of r.observations) {
+      console.log(`  ·      ${o.title}: ${o.observed}`);
+    }
+  }
+
   if (r.abstained.length) {
     console.log('\nNot measured');
     for (const a of r.abstained) console.log(`  ?      ${a.title}`);

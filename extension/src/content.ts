@@ -21,7 +21,12 @@ function bandLabel(band: ScoreReport['band']): string {
   return { weak: 'Needs work', developing: 'Developing', solid: 'Solid', strong: 'Strong' }[band];
 }
 
-function render(report: ScoreReport, persona: PersonaId, onPersona: (p: PersonaId) => void): HTMLElement {
+function render(
+  report: ScoreReport,
+  persona: PersonaId,
+  onPersona: (p: PersonaId) => void,
+  onRescan: () => void,
+): HTMLElement {
   const panel = el('div', 'lps-panel');
   panel.id = PANEL_ID;
 
@@ -36,6 +41,11 @@ function render(report: ScoreReport, persona: PersonaId, onPersona: (p: PersonaI
     el('div', 'lps-band', bandLabel(report.band)),
   );
   head.append(scoreWrap, headText);
+
+  const rescan = el('button', 'lps-rescan', 'Rescan');
+  rescan.title = 'Re-read the page — useful after scrolling loads more sections';
+  rescan.onclick = onRescan;
+  head.append(rescan);
 
   const close = el('button', 'lps-close', '×');
   close.title = 'Close';
@@ -134,35 +144,55 @@ async function writePersona(p: PersonaId): Promise<void> {
 }
 
 async function run(): Promise<void> {
-  const profile = extractProfile();
   let persona = await readPersona();
 
-  const mount = (p: PersonaId) => {
+  const draw = (p: PersonaId) => {
     persona = p;
     void writePersona(p);
+    const profile = extractProfile();
     document.getElementById(PANEL_ID)?.remove();
-    document.body.append(render(scoreProfile(profile, p), p, mount));
+    document.body.append(render(scoreProfile(profile, p), p, draw, () => draw(persona)));
+    return profile;
   };
 
-  mount(persona);
-
-  // Surfaced for debugging against real markup — extraction is the fragile half.
+  const profile = draw(persona);
   console.log('[profile-score] extracted', profile);
   console.log('[profile-score] all personas', scoreAllPersonas(profile));
+
+  // Cards below the fold hydrate lazily, so the first scan sees fewer sections
+  // than exist. Re-scan when new cards appear rather than reporting a score
+  // built on half the page.
+  let known = document.querySelectorAll('div[componentkey]').length;
+  let timer: number | undefined;
+  const obs = new MutationObserver(() => {
+    const now = document.querySelectorAll('div[componentkey]').length;
+    if (now === known) return;
+    known = now;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const next = draw(persona);
+      console.log('[profile-score] re-scanned after lazy load', next);
+    }, 600) as unknown as number;
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
+  setTimeout(() => obs.disconnect(), 60000);
 }
 
-// LinkedIn is a single-page app: the profile mounts after navigation, so wait for
-// the headline to exist rather than for document load.
+// LinkedIn is a single-page app and renders the profile after navigation, so wait
+// for the top card to exist. NOT `main h1` — on the server-driven UI the name is
+// an h2 and that selector never matches, which silently prevents the panel mounting.
+const READY_SELECTOR = 'div[componentkey$="Topcard"], main h1, main h2';
+
 function whenReady(cb: () => void): void {
-  if (document.querySelector('main h1')) return cb();
+  if (document.querySelector(READY_SELECTOR)) return cb();
   const obs = new MutationObserver(() => {
-    if (document.querySelector('main h1')) {
+    if (document.querySelector(READY_SELECTOR)) {
       obs.disconnect();
       cb();
     }
   });
   obs.observe(document.documentElement, { childList: true, subtree: true });
-  setTimeout(() => obs.disconnect(), 15000);
+  setTimeout(() => obs.disconnect(), 20000);
 }
 
 whenReady(() => void run());

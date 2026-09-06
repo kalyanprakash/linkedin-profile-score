@@ -74,7 +74,10 @@ export const strong: Profile = {
   photo: { present: true, isDefault: false },
   recommendationsReceived: 7,
   activity: { lastPostDaysAgo: 5, postsLast30d: 6 },
-  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived'],
+  location: 'Amsterdam, Netherlands',
+  contactInfoAvailable: true,
+  education: [{ school: 'Delft University of Technology', degree: 'MSc Computer Science' }],
+  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education'],
 };
 
 /** Everything visible, everything empty. The genuine floor. */
@@ -90,7 +93,10 @@ export const empty: Profile = {
   photo: { present: false },
   recommendationsReceived: 0,
   activity: { lastPostDaysAgo: null, postsLast30d: 0 },
-  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived'],
+  location: '',
+  contactInfoAvailable: false,
+  education: [],
+  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education'],
 };
 
 /** Median case: complete but unremarkable. Should land mid-range, not at either extreme. */
@@ -117,7 +123,10 @@ export const median: Profile = {
   photo: { present: true },
   recommendationsReceived: 1,
   activity: { lastPostDaysAgo: 60, postsLast30d: 0 },
-  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived'],
+  location: 'Manchester, United Kingdom',
+  contactInfoAvailable: false,
+  education: [{ school: 'University of Manchester', degree: 'BSc' }],
+  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education'],
 };
 
 /**
@@ -153,8 +162,15 @@ export const kalyanLive: Profile = {
   skillsDeclaredCount: 34,
   featured: [{ kind: 'post', title: 'The job market has been brutal lately…', hasCustomThumbnail: true }],
   banner: { present: false },
-  photo: { present: true, isDefault: false },
+  photo: { present: true, isDefault: false, hasFrame: true },
+  openToWork: { active: true, publicToAll: true },
+  location: 'Seattle, Washington, United States',
+  contactInfoAvailable: true,
+  education: [
+    { school: 'Northwestern University - Kellogg School of Management', degree: 'Executive MBA' },
+    { school: 'International Institute of Information Technology' },
+  ],
   recommendationsReceived: 4,
   activity: { lastPostDaysAgo: 122, postsLast30d: 0 },
-  observed: ['name', 'headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'recommendationsReceived', 'activity', 'customUrl'],
+  observed: ['name', 'headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'recommendationsReceived', 'activity', 'customUrl', 'location', 'contactInfoAvailable', 'education'],
 };

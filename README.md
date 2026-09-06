@@ -69,6 +69,23 @@ npm run build:ext                     # → extension/dist
 Load the extension: `chrome://extensions` → Developer mode → Load unpacked →
 select `extension/`. Then open any `linkedin.com/in/…` profile.
 
+## What it can and cannot see
+
+Verified against the live DOM on 2026-09-06.
+
+**Your own profile** renders every card, and the extractor reads all of them.
+
+**Other people's profiles are limited by LinkedIn, not by this code.** On a 3rd-degree
+connection only the top card and activity feed render at all — About, Experience,
+Skills, Education, Featured and Recommendations are simply absent from the page.
+The extractor reports them as unobserved, so the engine abstains and the score comes
+back as a wide range rather than a fabricated low number. Checked on a real
+out-of-network profile: six sections correctly declined, zero false zeros.
+
+The practical consequence is that this is a **self-audit tool**. Auditing strangers
+is not a feature that can be built, at any level of effort, without a LinkedIn
+account relationship that renders the sections.
+
 ## Current state
 
 The engine is done and tested. The extractor is not verified against live LinkedIn
@@ -78,6 +95,12 @@ place selectors live, so DOM drift is a one-file fix.
 
 Not yet built: activity and recommendations (separate URLs), the paste-based web
 fallback, and the rewrite.
+
+## Licence
+
+Apache License 2.0. Use it, fork it, build on it commercially — the patent grant
+is why Apache rather than MIT. No CLA: contributions are inbound=outbound under
+the same licence.
 
 ## Guarantees
 

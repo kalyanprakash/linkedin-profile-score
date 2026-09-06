@@ -2,7 +2,7 @@ import { ABSTAIN, type Rule } from '../types.ts';
 import {
   isDefaultShapedHeadline, plateau, ramp, uniqueLower, words,
 } from '../text.ts';
-import { saw, stem, contentTokens, candidateTerms, splitTerms } from './util.ts';
+import { saw, stem, contentTokens, candidateTerms, splitTerms, substantiveStems } from './util.ts';
 
 /** LinkedIn's headline field caps at 220 characters. */
 const HEADLINE_BUDGET = 220;
@@ -101,37 +101,34 @@ export const headlineRules: Rule[] = [
   {
     id: 'headline.searchable_terms',
     dimension: 'Headline',
-    title: 'Headline carries terms people actually search',
+    title: 'Headline is dense with searchable terms',
     base: 9,
     evaluate({ profile }) {
       if (!saw(profile, 'headline')) return ABSTAIN;
       const h = (profile.headline || '').trim();
       if (!h) return { ratio: 0, observed: 'No headline.', reason: 'Nothing to measure.', fix: 'Add a headline.' };
 
-      const terms = candidateTerms(profile);
-      // With almost no vocabulary captured there is nothing meaningful to match
-      // against, and matching a title against a headline that contains it is circular.
-      if (terms.length < 5) return ABSTAIN;
+      const stems = substantiveStems(h);
+      // Density of searchable domain terms, not agreement with your current job
+      // title. The ceiling is deliberately low: a good headline reaches it, and
+      // stuffing past it earns nothing.
+      const TARGET = 6;
+      const ratio = ramp(stems.length, 1, TARGET);
 
-      const { hit, miss } = splitTerms(h, terms);
-      // Target scales with what the person actually has to work with.
-      const target = Math.min(5, Math.max(2, Math.ceil(terms.length / 4)));
-      const ratio = ramp(hit.length, 0, target);
+      // Reported only — the person's own vocabulary is useful context for the fix,
+      // but scoring against it is what broke this rule.
+      const own = candidateTerms(profile);
+      const { miss } = own.length >= 5 ? splitTerms(h, own) : { miss: [] as string[] };
 
       return {
         ratio,
-        observed:
-          hit.length > 0
-            ? `Carries ${hit.length} of your own role and skill terms: ${hit.slice(0, 6).join(', ')}.`
-            : 'None of your role or skill terms appear in the headline.',
+        observed: `${stems.length} distinct searchable term${stems.length === 1 ? '' : 's'}: ${stems.slice(0, 8).join(', ')}.`,
         reason:
-          'Recruiter and buyer search weights the headline heavily, and it matches on your own vocabulary — job titles and skills — not on adjectives.',
+          'Recruiter and buyer search matches on domain nouns — roles, technologies, problems — not on adjectives or seniority words.',
         fix:
-          ratio < 1 && miss.length
-            ? `Work in ${target - hit.length} more of the terms you are already known for, for example: ${miss.slice(0, 5).join(', ')}.`
-            : ratio < 1
-              ? 'Add more of the specific terms you want to be searched for.'
-              : undefined,
+          ratio < 1
+            ? `Work in ${TARGET - stems.length} more specific term${TARGET - stems.length === 1 ? '' : 's'} for what you do${miss.length ? `, for example: ${miss.slice(0, 4).join(', ')}` : ''}.`
+            : undefined,
       };
     },
   },

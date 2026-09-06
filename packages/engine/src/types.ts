@@ -42,7 +42,11 @@ export interface Profile {
   recommendationsReceived?: number;
 
   banner?: { present?: boolean; isDefault?: boolean };
-  photo?: { present?: boolean; isDefault?: boolean };
+  /** `hasFrame` is LinkedIn's photo ring — in practice almost always #OpenToWork. */
+  photo?: { present?: boolean; isDefault?: boolean; hasFrame?: boolean };
+  /** Whether the "Open to work" banner is on, and who can see it. */
+  openToWork?: { active?: boolean; publicToAll?: boolean };
+  contactInfoAvailable?: boolean;
 
   activity?: {
     /** Days since most recent public post. null = never posted. */
@@ -110,6 +114,23 @@ export interface DimensionScore {
   available: number;
 }
 
+/**
+ * Something worth telling the person that must not move the score.
+ *
+ * Some profile choices have no defensible right answer — the evidence is thin,
+ * contested, or the correct call genuinely depends on the person. Pricing those
+ * in points fabricates authority we do not have, which is the failure mode this
+ * rubric exists to avoid. Report them; let the person decide.
+ */
+export interface Observation {
+  id: string;
+  title: string;
+  /** What is actually on the profile. */
+  observed: string;
+  /** The trade-off, both directions, without a recommendation. */
+  note: string;
+}
+
 export interface ScoreReport {
   persona: PersonaId;
   /** 0..100, normalised over rules that did not abstain. */
@@ -133,4 +154,6 @@ export interface ScoreReport {
   topFixes: { id: string; title: string; fix: string; pointsAvailable: number }[];
   /** Points unreachable by this extractor, so the score is honest about its ceiling. */
   unobservedPoints: number;
+  /** Unscored findings. See `Observation`. */
+  observations: Observation[];
 }

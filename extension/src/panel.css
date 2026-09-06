@@ -1,0 +1,76 @@
+/* Scoped to .lps-* so nothing leaks into LinkedIn's own styles. */
+
+.lps-panel {
+  position: fixed;
+  top: 72px;
+  right: 20px;
+  z-index: 2147483000;
+  width: 380px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  background: #fff;
+  color: #16181c;
+  border: 1px solid #d8dce1;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+.lps-head { display: flex; align-items: center; gap: 14px; position: relative; }
+.lps-scorewrap { display: flex; align-items: baseline; gap: 2px; }
+.lps-score { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+.lps-outof { font-size: 14px; color: #6b7280; }
+.lps-weak { color: #b42318; }
+.lps-developing { color: #b54708; }
+.lps-solid { color: #175cd3; }
+.lps-strong { color: #027a48; }
+.lps-headtext { display: flex; flex-direction: column; }
+.lps-title { font-weight: 600; }
+.lps-band { color: #6b7280; font-size: 13px; }
+.lps-close {
+  position: absolute; top: -6px; right: -4px;
+  border: 0; background: none; cursor: pointer;
+  font-size: 22px; line-height: 1; color: #98a2b3; padding: 4px;
+}
+.lps-close:hover { color: #16181c; }
+
+.lps-goal { margin-top: 16px; }
+.lps-label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7280; margin-bottom: 6px; }
+.lps-select { width: 100%; padding: 8px 10px; border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; font-size: 14px; }
+.lps-intent { margin-top: 6px; font-size: 12.5px; color: #6b7280; }
+
+.lps-note {
+  margin-top: 14px; padding: 10px 12px;
+  background: #fffaeb; border: 1px solid #fedf89; border-radius: 8px;
+  font-size: 12.5px; color: #7a2e0e;
+}
+
+.lps-h3 { margin: 20px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7280; }
+.lps-fixes { margin: 0; padding: 0; list-style: none; }
+.lps-fixes li { padding: 10px 0; border-top: 1px solid #eaecf0; }
+.lps-pts { display: inline-block; min-width: 34px; font-weight: 700; color: #027a48; }
+.lps-fixtitle { font-weight: 600; }
+.lps-fixbody { margin: 4px 0 0 34px; color: #475467; font-size: 13px; }
+
+.lps-details { margin-top: 16px; border-top: 1px solid #eaecf0; padding-top: 10px; }
+.lps-details summary { cursor: pointer; font-size: 13px; color: #475467; font-weight: 600; }
+.lps-row { padding: 8px 0; border-bottom: 1px solid #f2f4f7; font-size: 13px; }
+.lps-mark { display: inline-block; width: 18px; font-weight: 700; }
+.lps-pass { color: #027a48; }
+.lps-fail { color: #b42318; }
+.lps-part { color: #b54708; }
+.lps-rowtitle { font-weight: 500; }
+.lps-rowpts { float: right; color: #6b7280; font-variant-numeric: tabular-nums; }
+.lps-observed { margin: 3px 0 0 18px; color: #667085; font-size: 12.5px; }
+
+.lps-foot { margin-top: 16px; font-size: 11.5px; color: #98a2b3; }
+
+@media (prefers-color-scheme: dark) {
+  .lps-panel { background: #1b1f23; color: #e7e9ea; border-color: #2f343a; }
+  .lps-select { background: #23282d; color: #e7e9ea; border-color: #3a4046; }
+  .lps-note { background: #2b2517; border-color: #5c4813; color: #f6d78a; }
+  .lps-fixes li, .lps-details, .lps-row { border-color: #2f343a; }
+  .lps-observed, .lps-fixbody, .lps-intent, .lps-band { color: #9aa3ad; }
+}

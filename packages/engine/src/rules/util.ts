@@ -62,13 +62,27 @@ export function contentTokens(s: string): string[] {
  * hardcoded keyword list so the rubric needs no vocabulary maintenance and stays
  * honest across industries.
  */
+/**
+ * Seniority and org-chart words. They appear in job titles but describe rank, not
+ * expertise, so they are not terms anyone should be told to work into their prose.
+ * Left in, they padded the denominator and produced advice like "write 'senior'
+ * into your About".
+ */
+const SENIORITY_TOKENS = new Set([
+  'senior', 'junior', 'staff', 'principal', 'lead', 'head', 'chief', 'director',
+  'manager', 'vice', 'president', 'associate', 'assistant', 'executive', 'officer',
+  'intern', 'deputy', 'global', 'regional', 'group', 'level', 'grade',
+]);
+
 export function candidateTerms(profile: Profile): string[] {
   const titles = (profile.experience || []).map((e) => e.title || '').filter(Boolean);
   // Only the top skills. LinkedIn orders these, and the top of the list is what
   // the person wants to be known for. Requiring all 25 to appear in prose would
   // make the check unwinnable, which is the failure mode this rubric exists to avoid.
   const skills = (profile.skills || []).slice(0, 8);
-  const titleTokens = titles.flatMap((t) => contentTokens(t)).filter((t) => t.length > 3);
+  const titleTokens = titles
+    .flatMap((t) => contentTokens(t))
+    .filter((t) => t.length > 3 && !SENIORITY_TOKENS.has(t));
   return uniqueLower([...skills, ...titleTokens]).slice(0, 12);
 }
 

@@ -2,11 +2,18 @@
   "name": "linkedin-profile-score",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/engine"],
+  "workspaces": [
+    "packages/engine"
+  ],
   "scripts": {
     "test": "node --experimental-strip-types --test packages/engine/test/*.test.ts",
     "demo": "node --experimental-strip-types packages/engine/test/demo.ts",
-    "build:ext": "cd extension && node build.mjs"
+    "build:ext": "cd extension && node build.mjs",
+    "watch": "cd extension && node build.mjs --watch",
+    "report": "node --experimental-strip-types packages/engine/test/demo.ts"
   },
-  "devDependencies": { "esbuild": "^0.24.0", "@types/chrome": "^0.0.287" }
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "@types/chrome": "^0.0.287"
+  }
 }

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { scoreProfile, scoreAllPersonas } from '../src/score.ts';
 import { PERSONAS } from '../src/personas.ts';
 import { ALL_RULES } from '../src/rules/index.ts';
-import { stem, termPresent } from '../src/rules/util.ts';
+import { stem, termPresent, candidateTerms } from '../src/rules/util.ts';
 import type { PersonaId, Profile } from '../src/types.ts';
 import { kalyan, strong, empty, median } from './fixtures/profiles.ts';
 
@@ -210,4 +210,20 @@ test('multi-word terms match prose that uses their words separately', () => {
   assert.ok(termPresent(prose, 'Platform Engineering'), 'should match across inflections');
   assert.ok(termPresent(prose, 'Developer Productivity'));
   assert.ok(!termPresent(prose, 'Kubernetes'), 'absent term must not match');
+});
+
+test('candidate terms exclude seniority words from job titles', () => {
+  const p: Profile = {
+    experience: [
+      { title: 'Director of Engineering', company: 'X' },
+      { title: 'Senior Engineering Manager', company: 'X' },
+    ],
+    skills: ['Kubernetes'],
+    observed: ['experience', 'skills'],
+  };
+  const terms = candidateTerms(p);
+  for (const noise of ['director', 'senior', 'manager']) {
+    assert.ok(!terms.includes(noise), `"${noise}" is rank, not expertise — should not be a candidate term`);
+  }
+  assert.ok(terms.includes('engineering'), 'the domain word should survive');
 });

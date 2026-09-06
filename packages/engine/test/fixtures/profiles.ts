@@ -119,3 +119,42 @@ export const median: Profile = {
   activity: { lastPostDaysAgo: 60, postsLast30d: 0 },
   observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived'],
 };
+
+/**
+ * The same person, read from the live LinkedIn DOM on 2026-09-06 — everything
+ * visible, nothing inferred. Kept alongside `kalyan` (the partial scrape) so the
+ * pair shows what full extraction is worth.
+ *
+ * Two of linkedinrebuilt.com's findings are contradicted by the page itself:
+ * it reported the Featured section empty (there is a featured post) and reported
+ * four roles (there are six).
+ */
+export const kalyanLive: Profile = {
+  name: 'Kalyan Dasika',
+  headline: 'Software Development Manager @ Amazon Web Services | Engineering Management',
+  about:
+    'With over 15 years of experience at Amazon, I currently serve as a Software Development Manager, ' +
+    'focusing on engineering and team management. I lead initiatives that prioritize technical leadership ' +
+    "and collaboration, enabling teams to deliver impactful solutions aligned with AWS's mission to innovate " +
+    'in cloud computing. My expertise lies in fostering high-performing teams and driving strategic goals ' +
+    'through technical excellence, while maintaining a commitment to supporting professional growth and ' +
+    'delivering value to our customers.',
+  customUrl: true,
+  experience: [
+    { title: 'Software Development Manager', company: 'Amazon Web Services (AWS)', dateRange: 'Apr 2021 - Present', current: true, description: '' },
+    { title: 'Software Development Manager', company: 'Amazon Web Services (AWS)', dateRange: 'May 2019 - Apr 2021', description: '' },
+    { title: 'SDE II', company: 'Amazon Web Services (AWS)', dateRange: 'Oct 2017 - May 2019', description: '' },
+    { title: 'Software Development Engineer', company: 'Amazon Web Services (AWS)', dateRange: 'Nov 2015 - Oct 2017', description: '' },
+    { title: 'Support Engineer', company: 'Amazon Web Services (AWS)', dateRange: 'Apr 2013 - Nov 2015', description: 'Working as a Support Engineer in AWS Commerce platform.' },
+    { title: 'Support Engineer', company: 'Amazon', dateRange: 'Oct 2010 - Apr 2013', description: 'Worked as Support Engineer in CBA.' },
+  ],
+  // 34 declared; LinkedIn only renders two names before "Show all".
+  skills: ['Engineering Management', 'Team Management'],
+  skillsDeclaredCount: 34,
+  featured: [{ kind: 'post', title: 'The job market has been brutal lately…', hasCustomThumbnail: true }],
+  banner: { present: false },
+  photo: { present: true, isDefault: false },
+  recommendationsReceived: 4,
+  activity: { lastPostDaysAgo: 122, postsLast30d: 0 },
+  observed: ['name', 'headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'recommendationsReceived', 'activity', 'customUrl'],
+};

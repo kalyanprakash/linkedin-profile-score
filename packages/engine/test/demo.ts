@@ -1,7 +1,7 @@
 import { scoreProfile, scoreAllPersonas } from '../src/score.ts';
 import { PERSONAS } from '../src/personas.ts';
 import type { PersonaId, Profile } from '../src/types.ts';
-import { kalyan, strong, empty, median } from './fixtures/profiles.ts';
+import { kalyan, kalyanLive, strong, empty, median } from './fixtures/profiles.ts';
 
 function bar(ratio: number, width = 12): string {
   const n = Math.round(ratio * width);
@@ -45,7 +45,8 @@ function report(label: string, profile: Profile, personaId: PersonaId) {
 const which = process.argv[2] ?? 'kalyan';
 const persona = (process.argv[3] ?? 'job_search') as PersonaId;
 const map: Record<string, [string, Profile]> = {
-  kalyan: ['Kalyan Dasika (real, as scraped)', kalyan],
+  kalyan: ['Kalyan Dasika (partial scrape)', kalyan],
+  live: ['Kalyan Dasika (live DOM)', kalyanLive],
   strong: ['Strong reference profile', strong],
   median: ['Median reference profile', median],
   empty: ['Empty profile', empty],

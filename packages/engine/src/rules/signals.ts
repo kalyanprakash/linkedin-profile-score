@@ -46,7 +46,7 @@ export const signalRules: Rule[] = [
     base: 6,
     evaluate({ profile }) {
       if (!saw(profile, 'skills')) return ABSTAIN;
-      const n = (profile.skills || []).length;
+      const n = profile.skillsDeclaredCount ?? (profile.skills || []).length;
       const ratio = ramp(n, 0, 25);
       return {
         ratio,

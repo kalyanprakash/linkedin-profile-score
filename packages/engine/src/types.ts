@@ -30,6 +30,13 @@ export interface Profile {
   experience?: Experience[];
   education?: { school?: string; degree?: string }[];
   skills?: string[];
+  /**
+   * How many skills the profile declares. LinkedIn collapses the section and
+   * renders only the first couple of names, so the count is knowable when the
+   * names are not. Kept separate so scoring can use the true count while advice
+   * only ever names skills actually read.
+   */
+  skillsDeclaredCount?: number;
   featured?: FeaturedItem[];
   certifications?: string[];
   recommendationsReceived?: number;

@@ -38,8 +38,15 @@ export interface Action {
   label: string;
   /** Rules this action moves. Used to skip actions that would change nothing. */
   rules: string[];
-  /** What changes for the person reading the profile. Not a rule restatement. */
-  consequence: string;
+  /**
+   * What the reader currently cannot do, in this profile's actual state.
+   *
+   * A function, not a string, because one action covers several situations and a
+   * fixed sentence lies in some of them: telling someone their current role "shows
+   * only a job title and a date range" when it has a short description is exactly
+   * the kind of false assertion this whole project exists to avoid.
+   */
+  consequence: (p: Profile) => string;
   /** Class per persona. Posting blocks an audience and merely compounds for a job hunt. */
   classFor: (persona: PersonaId) => ActionClass;
   /** Produce the fixed state, for simulation. Mutates the copy it is given. */
@@ -99,8 +106,15 @@ export const ACTIONS: Action[] = [
     label: 'Write a proper description for your current role',
     rules: ['experience.description_coverage', 'experience.current_role_detail',
       'experience.quantified', 'experience.outcome_language', 'keywords.reinforcement'],
-    consequence:
-      'Right now a recruiter opening your most recent role sees a job title and a date range. They cannot tell what you owned or what changed.',
+    consequence: (p) => {
+      const list = p.experience ?? [];
+      const current = list.find((e) => e.current) ?? list[0];
+      const wc = (current?.description ?? '').trim().split(/\s+/).filter(Boolean).length;
+      const where = current?.title ? `"${current.title}"` : 'your most recent role';
+      return wc === 0
+        ? `A recruiter opening ${where} sees a job title and a date range. There is nothing to tell them what you owned or what changed.`
+        : `${where} has ${wc} words on it. That is enough to say where you worked, not enough to say what you were good at.`;
+    },
     classFor: (p) => (p === 'job_search' || p === 'recruiter_inbound' ? 'blocking' : 'substance'),
     apply: (p) => {
       const list = p.experience ?? [];
@@ -112,8 +126,13 @@ export const ACTIONS: Action[] = [
     id: 'describe_all_roles',
     label: 'Describe every role, not just the current one',
     rules: ['experience.description_coverage', 'experience.quantified', 'experience.outcome_language'],
-    consequence:
-      'Your earlier roles are titles only, so the arc of what you have done is invisible — a reader sees where you worked but not what you are good at.',
+    consequence: (p) => {
+      const list = p.experience ?? [];
+      const thin = list.filter((e) => (e.description ?? '').trim().split(/\s+/).filter(Boolean).length < 20).length;
+      return thin === list.length
+        ? 'Every role is a title and a date. The arc of what you have done is invisible.'
+        : `${thin} of your ${list.length} roles are titles only, so the earlier half of your career reads as a gap in evidence rather than experience.`;
+    },
     classFor: (p) => (p === 'job_search' || p === 'recruiter_inbound' ? 'substance' : 'polish'),
     apply: (p) => {
       const text = modelDescription(p);
@@ -125,8 +144,12 @@ export const ACTIONS: Action[] = [
     label: 'Rewrite your About with a hook, numbers and a closing ask',
     rules: ['about.present', 'about.hook', 'about.quantified', 'about.length',
       'about.cta', 'about.buzzwords', 'keywords.reinforcement'],
-    consequence:
-      'About is the only place you set your own framing. Most visitors read the first two lines and stop, so those lines decide whether anyone expands it.',
+    consequence: (p) => {
+      const len = (p.about ?? '').trim().length;
+      if (len === 0) return 'You have no About section, so the only framing on your profile is the one LinkedIn generates from your job titles.';
+      if (len < 600) return `Your About is ${len} characters — too short to establish much beyond what the headline already says.`;
+      return 'About is the only place you set your own framing. Most visitors read the first two lines and stop, so those lines decide whether anyone expands it.';
+    },
     classFor: (p) => (p === 'sales' || p === 'thought_leadership' || p === 'hiring' ? 'blocking' : 'substance'),
     apply: (p) => {
       const [a = 'this work', b = 'the team'] = ownTerms(p, 2).map((t) => t.toLowerCase());
@@ -149,8 +172,11 @@ export const ACTIONS: Action[] = [
     label: 'Replace the autofilled headline with one that says what you do',
     rules: ['headline.beyond_default', 'headline.searchable_terms', 'headline.specificity',
       'headline.length', 'skills.alignment'],
-    consequence:
-      'Your headline travels with you into every search result, comment and invitation. Right now it says the same thing as everyone else with your job title.',
+    consequence: (p) => {
+      const h = (p.headline ?? '').trim();
+      if (!h) return 'You have no headline, and it is the single most-indexed field on the profile.';
+      return `Your headline travels into every search result, comment and invitation. Right now it is ${h.length} of 220 characters and reads much like everyone else with your job title.`;
+    },
     classFor: (p) => (p === 'sales' || p === 'thought_leadership' ? 'blocking' : 'substance'),
     apply: (p) => {
       // Built from their own title and skills, so the delta measures writing
@@ -164,7 +190,7 @@ export const ACTIONS: Action[] = [
     id: 'set_location',
     label: 'Set your location',
     rules: ['profile.location'],
-    consequence:
+    consequence: () =>
       'Location is a hard filter in recruiter search. A blank one drops you out of every geographic query rather than ranking you lower in it.',
     classFor: () => 'substance',
     apply: (p) => { p.location = 'Seattle, Washington, United States'; },
@@ -173,7 +199,7 @@ export const ACTIONS: Action[] = [
     id: 'fill_skills',
     label: 'Get your skills list to 25, with the three that matter at the top',
     rules: ['skills.count', 'skills.alignment', 'keywords.reinforcement'],
-    consequence:
+    consequence: () =>
       'Skills are a direct search filter. A skill you have not listed cannot match, no matter how much of your experience demonstrates it.',
     classFor: (p) => (p === 'recruiter_inbound' ? 'blocking' : 'substance'),
     apply: (p) => {
@@ -186,7 +212,7 @@ export const ACTIONS: Action[] = [
     id: 'ask_recommendations',
     label: 'Ask three people you worked closely with for a recommendation',
     rules: ['recommendations.count'],
-    consequence:
+    consequence: () =>
       'Recommendations are the only claims on your profile you did not write yourself, which is exactly why they carry weight.',
     classFor: () => 'substance',
     apply: (p) => { p.recommendationsReceived = Math.max(3, p.recommendationsReceived ?? 0); },
@@ -195,7 +221,7 @@ export const ACTIONS: Action[] = [
     id: 'pin_featured',
     label: 'Pin two things to Featured',
     rules: ['featured.present'],
-    consequence:
+    consequence: () =>
       'Featured sits above the fold and is the only section where you choose exactly what a visitor sees first.',
     classFor: (p) => (p === 'sales' || p === 'thought_leadership' ? 'substance' : 'polish'),
     apply: (p) => {
@@ -209,7 +235,7 @@ export const ACTIONS: Action[] = [
     id: 'add_banner',
     label: 'Add a custom banner',
     rules: ['banner.present'],
-    consequence: 'The largest element on your profile is currently saying nothing.',
+    consequence: () => 'The largest element on your profile is currently saying nothing.',
     classFor: () => 'polish',
     apply: (p) => { p.banner = { present: true, isDefault: false }; },
   },
@@ -217,7 +243,7 @@ export const ACTIONS: Action[] = [
     id: 'claim_vanity_url',
     label: 'Claim your vanity URL',
     rules: ['profile.custom_url'],
-    consequence: 'This is the link that goes on a CV and in an email signature.',
+    consequence: () => 'This is the link that goes on a CV and in an email signature.',
     classFor: () => 'polish',
     apply: (p) => { p.customUrl = true; },
   },
@@ -225,7 +251,7 @@ export const ACTIONS: Action[] = [
     id: 'link_employers',
     label: 'Re-pick your employers from the company dropdown',
     rules: ['experience.company_linked'],
-    consequence:
+    consequence: () =>
       'Employers entered as plain text do not match a search filtered by company, so those roles are invisible to anyone looking for people who worked there.',
     classFor: () => 'polish',
     apply: (p) => { p.linkedEmployers = p.employerCount ?? 0; },
@@ -234,7 +260,7 @@ export const ACTIONS: Action[] = [
     id: 'start_posting',
     label: 'Post once a month, starting this month',
     rules: ['activity.recency', 'activity.cadence'],
-    consequence:
+    consequence: () =>
       'Every post carries your headline back into other people’s feeds. This is the one thing on the list that keeps working after you stop doing it — and the one that takes months rather than an afternoon.',
     classFor: (p) => {
       if (p === 'thought_leadership') return 'blocking';
@@ -247,6 +273,8 @@ export const ACTIONS: Action[] = [
 
 export interface Recommendation {
   action: Action;
+  /** `action.consequence` resolved against this profile's actual state. */
+  consequence: string;
   class: ActionClass;
   /** Measured, by re-scoring. Never estimated. */
   delta: number;
@@ -287,6 +315,7 @@ function simulate(profile: Profile, persona: PersonaId, action: Action, before: 
 
   return {
     action,
+    consequence: action.consequence(profile),
     class: action.classFor(persona),
     delta: after.score - before.score,
     scoreAfter: after.score,

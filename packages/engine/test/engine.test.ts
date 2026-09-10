@@ -423,7 +423,7 @@ test('every action references rules that exist', async () => {
   for (const a of ACTIONS) {
     assert.ok(a.rules.length > 0, `${a.id} moves no rules`);
     for (const id of a.rules) assert.ok(ids.has(id), `action "${a.id}" names unknown rule "${id}"`);
-    assert.ok(a.consequence.length > 30, `${a.id} needs a reader-facing consequence, not a rule restatement`);
+    assert.equal(typeof a.consequence, 'function', `${a.id} consequence must adapt to the profile`);
   }
 });
 

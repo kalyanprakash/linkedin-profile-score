@@ -50,6 +50,36 @@ export const profileRules: Rule[] = [
   },
 
   {
+    id: 'experience.company_linked',
+    dimension: 'Findability',
+    title: 'Employers resolve to a company page',
+    base: 4,
+    evaluate({ profile }) {
+      if (!saw(profile, 'employerCount')) return ABSTAIN;
+      const total = profile.employerCount ?? 0;
+      const linked = profile.linkedEmployers ?? 0;
+      if (total === 0) return ABSTAIN;
+
+      const ratio = linked / total;
+      const missing = total - linked;
+      return {
+        ratio,
+        observed: `${linked} of ${total} employer${total === 1 ? '' : 's'} link to a LinkedIn company page.`,
+        // Deliberately narrow. Whether a company has a page says nothing about
+        // whether the job happened, and scoring it as credibility would penalise
+        // startups, non-profits and the self-employed. The only defensible cost is
+        // the search filter, so that is the only thing claimed here.
+        reason:
+          'A linked employer is filterable in recruiter search; a plain-text one is not, so those roles drop out of any search narrowed by company.',
+        fix:
+          ratio < 1
+            ? `${missing} employer${missing === 1 ? '' : 's'} won't match a search filtered by company. Usually the name was typed rather than picked from the dropdown when the role was added — re-edit the role and select it. If it's your own company and has no page, creating one is free.`
+            : undefined,
+      };
+    },
+  },
+
+  {
     id: 'profile.contact_info',
     dimension: 'Findability',
     title: 'Contact details are reachable',

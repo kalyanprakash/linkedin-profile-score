@@ -78,17 +78,76 @@ const META_ISH = /^(?:Full-time|Part-time|Contract|Internship|Freelance|Self-emp
 /** Minimum characters before a leftover string counts as an actual description. */
 const MIN_DESCRIPTION_CHARS = 25;
 
+/** Distinct visible text pieces inside one role container, in order. */
+function textPieces(el: HTMLElement): string[] {
+  return [...el.querySelectorAll<HTMLElement>('p, span, h3')]
+    .map((n) => T(n))
+    .filter(Boolean)
+    .filter((v, i, a) => a.indexOf(v) === i);
+}
+
+/**
+ * Every role container in the Experience card, in document order.
+ *
+ * LinkedIn uses two shapes and only one of them is a list item:
+ *   - an employer with SEVERAL roles renders a header div, roles as <li> beneath
+ *   - an employer with ONE role renders a single <div>, title inline, no <li>
+ *
+ * Reading only <li> silently drops every single-role position — which understates
+ * role count and skews every ratio computed over roles.
+ */
+function roleContainers(root: HTMLElement): HTMLElement[] {
+  const out: HTMLElement[] = [...root.querySelectorAll<HTMLElement>('li')];
+
+  // Innermost divs that carry a date range, sit outside any <li>, and read like a
+  // role rather than an employer header chip.
+  for (const el of root.querySelectorAll<HTMLElement>('div')) {
+    if (el.closest('li')) continue;                     // already captured
+    if (el.querySelector('li')) continue;               // a group wrapper
+    if (!DATE_RANGE.test(T(el))) continue;
+    if ([...el.querySelectorAll('div')].some((d) => DATE_RANGE.test(T(d)))) continue; // not innermost
+
+    const texts = textPieces(el);
+    if (texts.length < 3) continue;                     // header chip, not a role
+    if (DATE_RANGE.test(texts[0]) || META_ISH.test(texts[0])) continue;
+    out.push(el);
+  }
+
+  return out.sort((a, b) =>
+    a.compareDocumentPosition(b) & 4 /* DOCUMENT_POSITION_FOLLOWING */ ? -1 : 1);
+}
+
+/**
+ * Employer units and how many resolve to a LinkedIn company entity.
+ *
+ * A linked employer is filterable in recruiter search; a plain-text one is not.
+ * Counted at the employer level because that is where LinkedIn puts the logo and
+ * the /company/ link — never on the individual role.
+ */
+function countEmployers(root: HTMLElement): { total: number; linked: number } {
+  const units: HTMLElement[] = [];
+
+  // Grouped: a container whose own <ul> holds the role <li>s.
+  for (const el of root.querySelectorAll<HTMLElement>('div')) {
+    const ul = el.querySelector(':scope > ul');
+    if (ul && ul.querySelector(':scope > li')) units.push(el);
+  }
+  // Single-role: the same containers roleContainers() finds outside any <li>.
+  for (const el of roleContainers(root)) {
+    if (!el.closest('li') && el.tagName !== 'LI') units.push(el);
+  }
+
+  const linked = units.filter((u) => u.querySelector('a[href*="/company/"]')).length;
+  return { total: units.length, linked };
+}
+
 function parseExperience(root: HTMLElement | null): Experience[] | undefined {
   if (!root) return undefined;
-  const items = [...root.querySelectorAll<HTMLElement>('li')];
+  const items = roleContainers(root);
   if (items.length === 0) return [];
 
-  return items.map((li): Experience => {
-    const texts = [...li.querySelectorAll<HTMLElement>('p, span, h3')]
-      .map((n) => T(n))
-      .filter(Boolean)
-      .filter((v, i, a) => a.indexOf(v) === i);
-
+  return items.map((el): Experience => {
+    const texts = textPieces(el);
     const title = texts[0];
     const dateRange = texts.find((t) => DATE_RANGE.test(t));
 
@@ -205,10 +264,20 @@ export function extractProfile(): Profile {
   }
 
   // -------------------------------------------------------------- experience
-  const experience = parseExperience(card('experience'));
+  const experienceCard = card('experience');
+  const experience = parseExperience(experienceCard);
   if (experience) {
     profile.experience = experience;
     observed.push('experience');
+
+    if (experienceCard) {
+      const { total, linked } = countEmployers(experienceCard);
+      if (total > 0) {
+        profile.employerCount = total;
+        profile.linkedEmployers = linked;
+        observed.push('employerCount');
+      }
+    }
   }
 
   // --------------------------------------------------------------- education

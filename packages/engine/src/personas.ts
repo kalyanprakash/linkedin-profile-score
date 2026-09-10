@@ -37,6 +37,7 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'activity.cadence': 0.3,
       'profile.location': 1.6,
       'education.present': 1.3,
+      'experience.company_linked': 1.0,
     },
   },
 
@@ -59,6 +60,7 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'activity.cadence': 0.1,
       'profile.location': 1.6,
       'education.present': 1.2,
+      'experience.company_linked': 1.2,
     },
   },
 
@@ -80,6 +82,7 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'recommendations.count': 1.2,
       'profile.location': 0.6,
       'education.present': 0.4,
+      'experience.company_linked': 0.4,
       'profile.contact_info': 1.6,
     },
   },
@@ -102,6 +105,7 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'about.cta': 1.2,
       'profile.location': 0.4,
       'education.present': 0.3,
+      'experience.company_linked': 0.3,
     },
   },
 
@@ -122,6 +126,7 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'skills.count': 0.5,
       'profile.location': 1.0,
       'education.present': 0.5,
+      'experience.company_linked': 0.6,
       'profile.contact_info': 1.4,
     },
   },

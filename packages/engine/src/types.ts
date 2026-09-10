@@ -28,6 +28,13 @@ export interface Profile {
   customUrl?: boolean;
 
   experience?: Experience[];
+  /**
+   * Employer groups on the profile, and how many resolve to a LinkedIn company
+   * entity rather than plain text. Counted at the employer level because that is
+   * where the logo and /company/ link live — never on the individual role.
+   */
+  employerCount?: number;
+  linkedEmployers?: number;
   education?: { school?: string; degree?: string }[];
   skills?: string[];
   /**

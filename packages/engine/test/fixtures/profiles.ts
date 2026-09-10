@@ -74,10 +74,12 @@ export const strong: Profile = {
   photo: { present: true, isDefault: false },
   recommendationsReceived: 7,
   activity: { lastPostDaysAgo: 5, postsLast30d: 6 },
+  employerCount: 2,
+  linkedEmployers: 2,
   location: 'Amsterdam, Netherlands',
   contactInfoAvailable: true,
   education: [{ school: 'Delft University of Technology', degree: 'MSc Computer Science' }],
-  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education'],
+  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education', 'employerCount'],
 };
 
 /** Everything visible, everything empty. The genuine floor. */
@@ -96,6 +98,8 @@ export const empty: Profile = {
   location: '',
   contactInfoAvailable: false,
   education: [],
+  employerCount: 0,
+  linkedEmployers: 0,
   observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education'],
 };
 
@@ -123,10 +127,12 @@ export const median: Profile = {
   photo: { present: true },
   recommendationsReceived: 1,
   activity: { lastPostDaysAgo: 60, postsLast30d: 0 },
+  employerCount: 2,
+  linkedEmployers: 1,
   location: 'Manchester, United Kingdom',
   contactInfoAvailable: false,
   education: [{ school: 'University of Manchester', degree: 'BSc' }],
-  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education'],
+  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education', 'employerCount'],
 };
 
 /**
@@ -164,6 +170,8 @@ export const kalyanLive: Profile = {
   banner: { present: false },
   photo: { present: true, isDefault: false, hasFrame: true },
   openToWork: { active: true, publicToAll: true },
+  employerCount: 4,
+  linkedEmployers: 4,
   location: 'Seattle, Washington, United States',
   contactInfoAvailable: true,
   education: [
@@ -172,5 +180,5 @@ export const kalyanLive: Profile = {
   ],
   recommendationsReceived: 4,
   activity: { lastPostDaysAgo: 122, postsLast30d: 0 },
-  observed: ['name', 'headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'recommendationsReceived', 'activity', 'customUrl', 'location', 'contactInfoAvailable', 'education'],
+  observed: ['name', 'headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'recommendationsReceived', 'activity', 'customUrl', 'location', 'contactInfoAvailable', 'education', 'employerCount'],
 };

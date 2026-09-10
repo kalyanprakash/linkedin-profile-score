@@ -1,4 +1,5 @@
 import { extractProfile } from './extract.ts';
+import { readKey, writeKey } from './storage.ts';
 import { scoreProfile, scoreAllPersonas } from '../../packages/engine/src/score.ts';
 import { advise, type Recommendation } from '../../packages/engine/src/actions.ts';
 import { PERSONAS, DEFAULT_PERSONA } from '../../packages/engine/src/personas.ts';
@@ -186,20 +187,12 @@ function render(
 }
 
 async function readPersona(): Promise<PersonaId> {
-  try {
-    const got = await chrome.storage.local.get(STORAGE_KEY);
-    return (got?.[STORAGE_KEY] as PersonaId) || DEFAULT_PERSONA;
-  } catch {
-    return DEFAULT_PERSONA;
-  }
+  const stored = await readKey(STORAGE_KEY);
+  return (stored as PersonaId) || DEFAULT_PERSONA;
 }
 
 async function writePersona(p: PersonaId): Promise<void> {
-  try {
-    await chrome.storage.local.set({ [STORAGE_KEY]: p });
-  } catch {
-    /* storage unavailable — the panel still works, the choice just will not stick */
-  }
+  await writeKey(STORAGE_KEY, p);
 }
 
 async function run(): Promise<void> {

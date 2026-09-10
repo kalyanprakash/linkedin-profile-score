@@ -414,3 +414,91 @@ test('CTA detection covers the indirect phrasings people actually use', async ()
     'My expertise lies in fostering high-performing teams.',
   ]) assert.ok(!hasCta(no), `should not see a CTA in: ${no.slice(0, 50)}`);
 });
+
+// ----------------------------------------------------------------- actions
+
+test('every action references rules that exist', async () => {
+  const { ACTIONS } = await import('../src/actions.ts');
+  const ids = new Set(ALL_RULES.map((r) => r.id));
+  for (const a of ACTIONS) {
+    assert.ok(a.rules.length > 0, `${a.id} moves no rules`);
+    for (const id of a.rules) assert.ok(ids.has(id), `action "${a.id}" names unknown rule "${id}"`);
+    assert.ok(a.consequence.length > 30, `${a.id} needs a reader-facing consequence, not a rule restatement`);
+  }
+});
+
+test('no action lowers the score on any profile — a negative delta is a rubric bug', async () => {
+  // The single most valuable guard here. A negative delta means the rubric would
+  // advise against a genuine improvement, which is exactly the failure that made a
+  // better headline score -1 before.
+  const { advise } = await import('../src/actions.ts');
+  const { ARCHETYPES } = await import('./fixtures/archetypes.ts');
+  const corpus: Record<string, Profile> = { ...ARCHETYPES, strong, median, kalyanLive, empty };
+  for (const [name, profile] of Object.entries(corpus)) {
+    for (const p of PERSONA_IDS) {
+      const { suspect } = advise(profile, p);
+      assert.equal(
+        suspect.length, 0,
+        `${name}/${p}: ${suspect.map((s) => `${s.action.id} (${s.delta})`).join(', ')}`,
+      );
+    }
+  }
+});
+
+test('the one thing is never the compounding habit, and vice versa', async () => {
+  const { advise } = await import('../src/actions.ts');
+  const { ARCHETYPES } = await import('./fixtures/archetypes.ts');
+  for (const profile of [...Object.values(ARCHETYPES), median, kalyanLive]) {
+    for (const p of PERSONA_IDS) {
+      const a = advise(profile, p);
+      if (a.oneThing) assert.notEqual(a.oneThing.class, 'compounding', 'a practice is not a one-off fix');
+      if (a.habit) assert.equal(a.habit.class, 'compounding');
+    }
+  }
+});
+
+test('a blocking action outranks a higher-scoring polish action', async () => {
+  const { advise } = await import('../src/actions.ts');
+  // Blank current role (blocking for job search) plus no banner (polish).
+  const p: Profile = {
+    ...strong,
+    experience: strong.experience!.map((e, i) => (i === 0 ? { ...e, description: '' } : e)),
+    banner: { present: false },
+  };
+  const a = advise(p, 'job_search');
+  assert.ok(a.oneThing, 'should recommend something');
+  assert.equal(a.oneThing!.class, 'blocking');
+  assert.notEqual(a.oneThing!.action.id, 'add_banner');
+});
+
+test('actions that would change nothing are not recommended', async () => {
+  const { advise } = await import('../src/actions.ts');
+  const a = advise(strong, 'job_search');
+  const ids = [a.oneThing, a.habit, ...a.alsoWorthDoing].filter(Boolean).map((r) => r!.action.id);
+  // The strong profile already has a banner and a vanity URL.
+  assert.ok(!ids.includes('add_banner'));
+  assert.ok(!ids.includes('claim_vanity_url'));
+});
+
+test('the simulated fix is built from the person own vocabulary', async () => {
+  // Regression: a canned platform-engineering headline scored a mechanical
+  // engineering graduate LOWER than their real one, because it destroyed skill
+  // alignment. The simulation must measure writing quality, not a career change.
+  const { ACTIONS } = await import('../src/actions.ts');
+  const { ARCHETYPES } = await import('./fixtures/archetypes.ts');
+  const action = ACTIONS.find((x) => x.id === 'rewrite_headline')!;
+  const copy = structuredClone(ARCHETYPES.nurse);
+  action.apply(copy);
+  assert.match(copy.headline!, /Nurse|Critical Care|Sepsis/i, `headline drifted out of domain: ${copy.headline}`);
+  assert.ok(
+    scoreProfile(copy, 'job_search').score >= scoreProfile(ARCHETYPES.nurse, 'job_search').score,
+    'a rewritten headline must not score below the original',
+  );
+});
+
+test('deltas are measured, not stored — re-running gives the same answer', async () => {
+  const { advise } = await import('../src/actions.ts');
+  const a = JSON.stringify(advise(kalyanLive, 'job_search').oneThing?.delta);
+  const b = JSON.stringify(advise(kalyanLive, 'job_search').oneThing?.delta);
+  assert.equal(a, b);
+});

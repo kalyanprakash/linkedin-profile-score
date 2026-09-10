@@ -1,6 +1,7 @@
 import { ABSTAIN, type Rule } from '../types.ts';
 import { ramp } from '../text.ts';
 import { candidateTerms, proseCorpus, splitTerms, saw } from './util.ts';
+import { uniqueLower } from '../text.ts';
 
 export const signalRules: Rule[] = [
   // ---------------------------------------------------------------- keywords
@@ -10,7 +11,11 @@ export const signalRules: Rule[] = [
     title: 'Your key terms are backed up by prose, not just listed',
     base: 10,
     evaluate({ profile }) {
-      const terms = candidateTerms(profile);
+      // Declared skills only, not job-title tokens. Prose is measured with titles
+      // excluded, so title words padded the denominator with terms the writing had
+      // no natural reason to repeat.
+      const declared = uniqueLower((profile.skills || []).slice(0, 10));
+      const terms = declared.length >= 5 ? declared : candidateTerms(profile);
       // Fewer than five terms means we are mostly looking at one job title; the
       // measurement would be circular, so decline it rather than reward it.
       if (terms.length < 5) return ABSTAIN;
@@ -29,10 +34,14 @@ export const signalRules: Rule[] = [
       }
 
       const { hit, miss } = splitTerms(prose, terms);
-      const ratio = hit.length / terms.length;
+      // Full credit at ~40% coverage. Nobody writes prose that names every skill
+      // they list, so requiring all of them made this unreachable — the same
+      // unwinnable-check problem this rubric exists to avoid.
+      const target = Math.max(2, Math.ceil(terms.length * 0.4));
+      const ratio = ramp(hit.length, 0, target);
       return {
         ratio,
-        observed: `${hit.length} of ${terms.length} of your role and skill terms also appear in your written sections.`,
+        observed: `${hit.length} of your ${terms.length} role and skill terms also appear in your written sections (${target} is full credit).`,
         reason: 'LinkedIn search rewards a term used in several places over one that appears once in a list.',
         fix: ratio < 1 ? `Listed but never written about: ${miss.slice(0, 8).join(', ')}.` : undefined,
       };

@@ -2,11 +2,26 @@ import { ABSTAIN, type Rule, type Experience } from '../types.ts';
 import { dutyPhraseCount, outcomeVerbCount, pct, quantHits, ramp, words } from '../text.ts';
 import { saw } from './util.ts';
 
-/** Below this, an entry is a stub rather than a description. */
-const MIN_WORDS = 20;
+/** Below this there is no prose worth analysing for numbers or verb choice. */
+const MIN_WORDS = 8;
+/** Words at which a role description is fully credited. */
+const FULL_WORDS = 40;
 
+/** Has enough prose to analyse at all. Not a quality judgement. */
 function described(e: Experience): boolean {
   return words(e.description || '').length >= MIN_WORDS;
+}
+
+/**
+ * How complete one role's description is, 0..1.
+ *
+ * Graded rather than a threshold. A hard cutoff made an 18-word description score
+ * identically to a blank one, which is the all-or-nothing behaviour this rubric
+ * exists to avoid — and it hit short histories hardest, where one partly-written
+ * role is the entire section.
+ */
+function descriptionDepth(e: Experience): number {
+  return ramp(words(e.description || '').length, 0, FULL_WORDS);
 }
 
 /** Recency weighting: the current role carries more than a job from 2011. */
@@ -14,12 +29,11 @@ function weights(n: number): number[] {
   return Array.from({ length: n }, (_, i) => (i === 0 ? 2 : i === 1 ? 1.5 : 1));
 }
 
-function weightedRatio(list: Experience[], predicate: (e: Experience) => boolean): number {
+function weightedScore(list: Experience[], score: (e: Experience) => number): number {
   const w = weights(list.length);
   const total = w.reduce((a, b) => a + b, 0);
   if (total === 0) return 0;
-  const got = list.reduce((acc, e, i) => acc + (predicate(e) ? w[i] : 0), 0);
-  return got / total;
+  return list.reduce((acc, e, i) => acc + score(e) * w[i], 0) / total;
 }
 
 export const experienceRules: Rule[] = [
@@ -52,20 +66,20 @@ export const experienceRules: Rule[] = [
       const list = profile.experience || [];
       if (list.length === 0) return ABSTAIN; // absence handled by experience.present
 
-      const filled = list.filter(described);
-      const ratio = weightedRatio(list, described);
-      const blanks = list.filter((e) => !described(e)).map((e) => e.title || 'untitled role');
+      const filled = list.filter((e) => descriptionDepth(e) >= 0.5);
+      const ratio = weightedScore(list, descriptionDepth);
+      const blanks = list.filter((e) => descriptionDepth(e) < 0.5).map((e) => e.title || 'untitled role');
 
       return {
         ratio,
-        observed: `${filled.length} of ${list.length} roles have a real description${blanks.length ? ` — missing on: ${blanks.slice(0, 4).join(', ')}` : ''}.`,
+        observed: `${filled.length} of ${list.length} roles are described in real depth${blanks.length ? ` — thin or missing on: ${blanks.slice(0, 4).join(', ')}` : ''}.`,
         reason:
           ratio === 0
             ? 'A title and a date range tell a reader nothing about what you did or how well.'
             : `Weighted toward your most recent roles, coverage is ${pct(ratio)}.`,
         fix:
           ratio < 1
-            ? `Add ${MIN_WORDS}+ words to each blank role, starting with the most recent. This is usually the largest single gain available on a profile.`
+            ? `Bring each thin role toward ${FULL_WORDS} words, starting with the most recent. This is usually the largest single gain available on a profile.`
             : undefined,
       };
     },
@@ -124,16 +138,18 @@ export const experienceRules: Rule[] = [
       const list = (profile.experience || []).filter(described);
       if (list.length === 0) return ABSTAIN;
 
-      const text = list.map((e) => e.description || '').join('\n');
-      const outcomes = outcomeVerbCount(text);
-      const duties = dutyPhraseCount(text);
-      const ratio = Math.max(0, ramp(outcomes, 0, list.length * 2) - ramp(duties, 0, 5) * 0.5);
+      // Per role, not distinct verbs across the section. Counting variety punished
+      // anyone whose roles are genuinely similar — a contractor doing the same job
+      // twelve times scored as if none of it were an outcome.
+      const withOutcome = list.filter((e) => outcomeVerbCount(e.description || '') > 0);
+      const duties = dutyPhraseCount(list.map((e) => e.description || '').join('\n'));
+      const ratio = Math.max(0, withOutcome.length / list.length - ramp(duties, 0, 5) * 0.4);
 
       return {
         ratio,
-        observed: `${outcomes} outcome verb${outcomes === 1 ? '' : 's'} and ${duties} duty phrase${duties === 1 ? '' : 's'} across ${list.length} written role${list.length === 1 ? '' : 's'}.`,
+        observed: `${withOutcome.length} of ${list.length} written role${list.length === 1 ? '' : 's'} lead with an outcome${duties ? `; ${duties} duty phrase${duties === 1 ? '' : 's'} found` : ''}.`,
         reason: '"Responsible for" describes the job posting. "Reduced", "grew", "shipped" describe you.',
-        fix: ratio < 1 ? 'Open each line with what changed because you were there, not what you were assigned.' : undefined,
+        fix: ratio < 1 ? 'Open each role with what changed because you were there, not what you were assigned.' : undefined,
       };
     },
   },

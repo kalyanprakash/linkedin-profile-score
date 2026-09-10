@@ -138,10 +138,37 @@ export interface Observation {
   note: string;
 }
 
+/**
+ * A ceiling imposed because a decision-blocking check failed.
+ *
+ * Weights express how much something matters. A cap expresses something weights
+ * cannot: that a reader is unable to make the decision this profile exists to
+ * enable, so no amount of polish elsewhere should read as "solid". Blocking is
+ * deliberately rare — if everything blocks, nothing does.
+ *
+ * Graded, not a cliff: the ceiling interpolates with the blocking check's own
+ * ratio, so a half-written experience section caps at roughly half the distance
+ * between the floor and 100.
+ */
+export interface ScoreCap {
+  ruleId: string;
+  title: string;
+  /** 0..100 ceiling actually applied. */
+  ceiling: number;
+  /** How the blocking check scored, 0..1. */
+  ratio: number;
+  /** Plain-language reason, phrased as what the reader cannot do. */
+  because: string;
+}
+
 export interface ScoreReport {
   persona: PersonaId;
-  /** 0..100, normalised over rules that did not abstain. */
+  /** 0..100, normalised over rules that did not abstain, after any cap. */
   score: number;
+  /** The score before caps. Equal to `score` when nothing blocks. */
+  uncappedScore: number;
+  /** Ceilings applied, if any. The lowest one wins. */
+  caps: ScoreCap[];
   /**
    * Honest bounds when some input was not captured: `floor` assumes every
    * unmeasured check would fail, `ceiling` assumes every one would pass.
@@ -150,6 +177,10 @@ export interface ScoreReport {
    * This exists because normalising over what we could see makes a partial
    * extraction score higher than a complete one. Reporting the point estimate
    * alone would mean the paste-based path always flatters the user.
+   *
+   * Brackets `uncappedScore`, not `score`. Uncertainty about what we could read and
+   * a ceiling from a blocking gap are separate things; mixing them would make
+   * neither legible. Present them side by side.
    */
   range: { floor: number; ceiling: number };
   band: 'weak' | 'developing' | 'solid' | 'strong';

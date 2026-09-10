@@ -14,6 +14,10 @@ function report(label: string, profile: Profile, personaId: PersonaId) {
   console.log(`${label}  —  ${PERSONAS[personaId].label}`);
   console.log('═'.repeat(78));
   console.log(`SCORE ${r.score}/100  (${r.band})`);
+  for (const c of r.caps) {
+    console.log(`      CAPPED at ${c.ceiling} (would be ${r.uncappedScore}) — ${c.title}`);
+    console.log(`      because ${c.because}`);
+  }
   if (r.unobservedPoints > 0) {
     console.log(`      true score is between ${r.range.floor} and ${r.range.ceiling} — ${r.abstained.length} checks (${r.unobservedPoints} pts) could not see their input`);
   }

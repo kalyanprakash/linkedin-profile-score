@@ -1,5 +1,25 @@
 import type { PersonaId } from './types.ts';
 
+/**
+ * A check whose failure stops the reader deciding, and the ceiling that imposes.
+ * `floor` is where the score is capped when the check scores zero.
+ */
+export interface BlockingGap {
+  ruleId: string;
+  /** Ceiling imposed when the check scores zero. */
+  floor: number;
+  /**
+   * The cap engages only below this ratio, and lifts to 100 as the ratio climbs
+   * toward it. Default 0.35.
+   *
+   * Without it, a graded depth check used as a blocking gap caps anyone who is
+   * merely short of full marks — a 53-word role description is "could be longer",
+   * not "a candidate cannot tell what the work is like". Blocking is about absence.
+   */
+  engageBelow?: number;
+  because: string;
+}
+
 export interface PersonaDef {
   id: PersonaId;
   label: string;
@@ -11,6 +31,12 @@ export interface PersonaDef {
    * zero score, it simply is not measured.
    */
   weights: Record<string, number>;
+  /**
+   * Checks whose failure caps the whole score. Keep this list to one or two —
+   * the bar is that the reader cannot make the decision, not that it matters a lot.
+   * Anything short of that belongs in `weights`.
+   */
+  blocking?: BlockingGap[];
 }
 
 export const PERSONAS: Record<PersonaId, PersonaDef> = {
@@ -39,6 +65,11 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'education.present': 1.3,
       'experience.company_linked': 1.0,
     },
+    blocking: [{
+      ruleId: 'experience.description_coverage',
+      floor: 55,
+      because: 'a recruiter opening your profile has no account of what you actually did in any role, so there is nothing to shortlist on',
+    }],
   },
 
   recruiter_inbound: {
@@ -62,6 +93,10 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'education.present': 1.2,
       'experience.company_linked': 1.2,
     },
+    blocking: [
+      { ruleId: 'skills.count', floor: 60, because: 'skills are a direct search filter, so with none listed you are absent from the result set rather than ranked low in it' },
+      { ruleId: 'profile.location', floor: 60, because: 'location is a hard filter, so a blank one excludes you from every geographic search' },
+    ],
   },
 
   sales: {
@@ -85,6 +120,10 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'experience.company_linked': 0.4,
       'profile.contact_info': 1.6,
     },
+    blocking: [
+      { ruleId: 'about.cta', floor: 58, because: 'a visitor convinced by your profile has no next step to take' },
+      { ruleId: 'headline.beyond_default', floor: 62, because: 'the headline does not say what you offer, so a buyer cannot tell whether you solve their problem' },
+    ],
   },
 
   thought_leadership: {
@@ -107,6 +146,11 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'education.present': 0.3,
       'experience.company_linked': 0.3,
     },
+    blocking: [{
+      ruleId: 'activity.recency',
+      floor: 50,
+      because: 'there is nothing recent to follow, and an audience cannot form around a profile that has gone quiet',
+    }],
   },
 
   hiring: {
@@ -129,6 +173,10 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       'experience.company_linked': 0.6,
       'profile.contact_info': 1.4,
     },
+    blocking: [
+      { ruleId: 'experience.current_role_detail', floor: 58, because: 'a candidate cannot tell what the work or the team is actually like' },
+      { ruleId: 'profile.contact_info', floor: 62, because: 'an interested candidate has no way to reach you' },
+    ],
   },
 };
 

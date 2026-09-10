@@ -1,5 +1,6 @@
 import {
   ABSTAIN, type PersonaId, type Profile, type ScoreReport, type ScoredRule, type DimensionScore,
+  type ScoreCap,
 } from './types.ts';
 import { PERSONAS, DEFAULT_PERSONA } from './personas.ts';
 import { ALL_RULES } from './rules/index.ts';
@@ -73,7 +74,39 @@ export function scoreProfile(profile: Profile, personaId: PersonaId = DEFAULT_PE
     r.available = round1(r.available * scale);
   }
 
-  const score = Math.round(rawAvailable > 0 ? (rawEarned / rawAvailable) * 100 : 0);
+  const uncappedScore = Math.round(rawAvailable > 0 ? (rawEarned / rawAvailable) * 100 : 0);
+
+  /**
+   * Decision-blocking gaps impose a ceiling.
+   *
+   * Weights say how much something matters; a cap says a reader cannot make the
+   * decision at all, so polish elsewhere must not read as "solid". Two rules the
+   * implementation must honour:
+   *
+   *  - It engages only on genuine absence. `engageBelow` (default 0.35) is the
+   *    ratio under which a gap counts as blocking at all; above it the check is
+   *    merely short of full marks, which is what weights are for.
+   *  - Graded, never a cliff. Between zero and `engageBelow` the ceiling rises
+   *    from `floor` to 100, so the cap fades out instead of falling off an edge —
+   *    the same reason every rule returns partial credit.
+   *  - An ABSTAINED check never caps. If the section could not be read, we cannot
+   *    claim it is missing; that is the whole point of abstention.
+   */
+  const caps: ScoreCap[] = [];
+  for (const gap of persona.blocking ?? []) {
+    const rule = scored.find((r) => r.id === gap.ruleId);
+    if (!rule) continue;             // abstained, or not measured for this persona
+    const engageBelow = gap.engageBelow ?? 0.35;
+    if (rule.ratio >= engageBelow) continue; // short of full marks, not blocking
+    const ceiling = Math.round(gap.floor + (100 - gap.floor) * (rule.ratio / engageBelow));
+    if (ceiling >= uncappedScore) continue; // not binding
+    caps.push({
+      ruleId: gap.ruleId, title: rule.title, ceiling, ratio: rule.ratio, because: gap.because,
+    });
+  }
+  caps.sort((a, b) => a.ceiling - b.ceiling);
+
+  const score = caps.length ? Math.min(uncappedScore, caps[0].ceiling) : uncappedScore;
 
   // Bounds over the full rubric, including what we could not see.
   const fullDenominator = rawAvailable + rawUnobserved;
@@ -106,6 +139,8 @@ export function scoreProfile(profile: Profile, personaId: PersonaId = DEFAULT_PE
   return {
     persona: persona.id,
     score,
+    uncappedScore,
+    caps,
     range,
     band: band(score),
     rules: scored.sort((a, b) => b.available - a.available),

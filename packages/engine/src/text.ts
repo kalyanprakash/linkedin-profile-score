@@ -77,7 +77,9 @@ const DUTY_PHRASES = [
 
 export function outcomeVerbCount(s: string): number {
   const t = (s || '').toLowerCase();
-  return OUTCOME_VERBS.filter((v) => new RegExp(`\\b${v}\\b`).test(t)).length;
+  // Allow common prefixes: "rebuilt" is as much an outcome as "built", but a bare
+  // \b would never match it.
+  return OUTCOME_VERBS.filter((v) => new RegExp(`\\b(?:re|over|out)?${v}\\b`).test(t)).length;
 }
 
 export function dutyPhraseCount(s: string): number {
@@ -85,9 +87,30 @@ export function dutyPhraseCount(s: string): number {
   return DUTY_PHRASES.filter((p) => t.includes(p)).length;
 }
 
+/**
+ * Ways people actually end an About section with an invitation.
+ *
+ * Deliberately broad. This check is a blocking gap for the sales persona, which
+ * multiplies the cost of a false negative: a narrow list capped the score of
+ * profiles closing with "glad to hear from people working on ICU staffing" and
+ * "happy to talk to anyone considering the same switch" — both unmistakably calls
+ * to action. Prefer over-matching here; the cost of a miss is far higher than the
+ * cost of crediting a weak invitation.
+ */
 const CTA_PATTERNS: RegExp[] = [
-  /\b(?:dm|message|email|reach out|get in touch|contact|connect with me|book|schedule|let'?s talk|happy to chat|open to)\b/i,
-  /\b(?:sign up|subscribe|download|read more|learn more|apply)\b/i,
+  // direct asks
+  /\b(?:dm|message|email|write to|ping)\s+me\b|\bdrop\s+me\s+a\b/i,
+  /\b(?:reach out|get in touch|say hello|say hi|let me know|look me up)\b/i,
+  /\bcontact\b|\bconnect(?:\s+with\s+me)?\b/i,
+  // invitations, including the indirect phrasings people actually use
+  /\b(?:happy|glad|keen|delighted|always up)\s+to\s+\w+/i,
+  /\b(?:love|like|happy)\s+to\s+(?:hear|talk|chat|connect|help)\b/i,
+  /\bhear\s+from\s+(?:you|people|anyone|folks)\b/i,
+  /\bfeel\s+free\s+to\b/i,
+  /\bif\s+you(?:'re|\s+are)?\s+\w+[^.]{0,60}\b(?:message|reach|get in touch|talk|hear|contact)\b/i,
+  // conversions
+  /\b(?:sign up|subscribe|download|read more|learn more|apply|book a|schedule a)\b/i,
+  // a route rather than a sentence
   /\bmailto:|@[\w.-]+\.\w{2,}\b/i,
   /https?:\/\/\S+/i,
 ];

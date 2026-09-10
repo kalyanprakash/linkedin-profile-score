@@ -45,9 +45,10 @@ test('scores stay within 0..100 and produce no NaN', () => {
 test('range brackets the point estimate', () => {
   for (const profile of [kalyan, strong, empty, median]) {
     for (const p of PERSONA_IDS) {
-      const { score, range } = scoreProfile(profile, p);
-      assert.ok(range.floor <= score + 1, `floor ${range.floor} above score ${score}`);
-      assert.ok(range.ceiling >= score - 1, `ceiling ${range.ceiling} below score ${score}`);
+      // Brackets the UNCAPPED score: a cap is a separate adjustment, not uncertainty.
+      const { uncappedScore, range } = scoreProfile(profile, p);
+      assert.ok(range.floor <= uncappedScore + 1, `floor ${range.floor} above ${uncappedScore}`);
+      assert.ok(range.ceiling >= uncappedScore - 1, `ceiling ${range.ceiling} below ${uncappedScore}`);
     }
   }
 });
@@ -258,4 +259,158 @@ test('observations are reported but never move the score', () => {
 test('no rule prices a contested claim', () => {
   // Guard: if a future rule scores the open-to-work signal, this fails.
   assert.ok(!ALL_RULES.some((r) => /frame|open_to_work|opentowork/i.test(r.id)));
+});
+
+// ------------------------------------------------------------- archetypes
+// Calibration guards for career shapes unlike the reference profiles. These catch
+// a rubric that works on one kind of career and misjudges another.
+
+test('every archetype lands in a defensible band', async () => {
+  const { ARCHETYPES } = await import('./fixtures/archetypes.ts');
+  for (const [name, profile] of Object.entries(ARCHETYPES)) {
+    for (const p of PERSONA_IDS) {
+      const s = scoreProfile(profile, p).score;
+      assert.ok(s >= 45 && s <= 90, `${name}/${p} scored ${s}; these are decent profiles, expected 45..90`);
+    }
+  }
+});
+
+test('a thin description scores above a blank one', async () => {
+  // Regression: description coverage used a hard 20-word threshold, so an 18-word
+  // description scored identically to an empty string. That hit short histories
+  // hardest, where one partly-written role is the whole section.
+  const base: Profile = {
+    experience: [{ title: 'Engineer', company: 'X', current: true, description: '' }],
+    observed: ['experience'],
+  };
+  const thin: Profile = {
+    experience: [{ ...base.experience![0], description: 'Ran analysis across forty load cases and rewrote the reporting template the team still uses.' }],
+    observed: ['experience'],
+  };
+  const blankRatio = scoreProfile(base, 'job_search').rules.find((r) => r.id === 'experience.description_coverage')!.ratio;
+  const thinRatio = scoreProfile(thin, 'job_search').rules.find((r) => r.id === 'experience.description_coverage')!.ratio;
+  assert.equal(blankRatio, 0);
+  assert.ok(thinRatio > 0.2 && thinRatio < 1, `thin description should earn partial credit, got ${thinRatio}`);
+});
+
+test('repeated similar roles are not punished for verb variety', async () => {
+  // Regression: outcome language counted DISTINCT verbs across the whole section,
+  // so a contractor doing the same job twelve times scored as if none of it were
+  // an outcome.
+  const desc = 'Rebuilt the ingestion layer and cut warehouse spend 38% while halving nightly run time.';
+  const repeated: Profile = {
+    experience: Array.from({ length: 5 }, (_, i) => ({
+      title: 'Data Engineer (contract)', company: `Client ${i}`, dateRange: '2024 - 2024', description: desc,
+    })),
+    observed: ['experience'],
+  };
+  const rule = scoreProfile(repeated, 'job_search').rules.find((r) => r.id === 'experience.outcome_language')!;
+  assert.equal(rule.ratio, 1, `all five roles lead with an outcome, got ${rule.ratio}`);
+});
+
+test('keyword reinforcement is reachable without naming every skill', async () => {
+  const p: Profile = {
+    headline: 'Data Engineer | Airflow and dbt',
+    experience: [{ title: 'Data Engineer', company: 'X', description: 'Rebuilt the airflow and dbt pipelines feeding the snowflake warehouse for the analytics team.' }],
+    skills: ['Airflow', 'dbt', 'Snowflake', 'Python', 'SQL', 'Terraform', 'ETL', 'Data Engineering'],
+    observed: ['headline', 'experience', 'skills'],
+  };
+  const rule = scoreProfile(p, 'job_search').rules.find((r) => r.id === 'keywords.reinforcement')!;
+  // The property that matters is reachability: naming a realistic share of your
+  // skills in prose must score well, not be treated as near-total failure.
+  assert.ok(rule.ratio >= 0.7, `naming 3 of 8 skills in prose should score well, got ${rule.ratio}`);
+});
+
+// ------------------------------------------------------------------- caps
+
+test('a blocking gap caps the score and says why', () => {
+  // Strong everywhere except that no role is described. Points alone read this as
+  // "solid"; a recruiter cannot shortlist it.
+  const blankExperience: Profile = {
+    ...strong,
+    experience: strong.experience!.map((e) => ({ ...e, description: '' })),
+  };
+  const r = scoreProfile(blankExperience, 'job_search');
+  assert.ok(r.caps.length > 0, 'a blank experience section must cap job search');
+  assert.equal(r.caps[0].ruleId, 'experience.description_coverage');
+  assert.ok(r.score < r.uncappedScore, `capped ${r.score} should be below uncapped ${r.uncappedScore}`);
+  assert.ok(r.score <= 55, `expected the floor to bind, got ${r.score}`);
+  assert.ok(r.caps[0].because.length > 20, 'a cap must explain itself in plain language');
+});
+
+test('a complete profile is never capped', () => {
+  for (const p of PERSONA_IDS) {
+    const r = scoreProfile(strong, p);
+    assert.equal(r.caps.length, 0, `${p} capped a profile with no blocking gap`);
+    assert.equal(r.score, r.uncappedScore);
+  }
+});
+
+test('caps are graded, not a cliff', () => {
+  // Halfway-written experience must cap roughly halfway, not fall off an edge.
+  const half: Profile = {
+    ...strong,
+    experience: strong.experience!.map((e, i) => (i === 0 ? { ...e, description: '' } : e)),
+  };
+  const none: Profile = {
+    ...strong,
+    experience: strong.experience!.map((e) => ({ ...e, description: '' })),
+  };
+  const halfScore = scoreProfile(half, 'job_search');
+  const noneScore = scoreProfile(none, 'job_search');
+  assert.ok(
+    noneScore.score < halfScore.score,
+    `no descriptions (${noneScore.score}) must score below some (${halfScore.score})`,
+  );
+  if (halfScore.caps.length) {
+    assert.ok(halfScore.caps[0].ceiling > noneScore.caps[0].ceiling, 'ceiling must scale with the ratio');
+  }
+});
+
+test('an abstained blocking check never caps', () => {
+  // The out-of-network case: experience could not be read at all. We cannot claim
+  // it is missing, so no cap — the range carries the uncertainty instead.
+  const unreadable: Profile = {
+    headline: 'Chief Executive Officer at Someone Else Ltd',
+    photo: { present: true },
+    observed: ['headline', 'photo'],
+  };
+  const r = scoreProfile(unreadable, 'job_search');
+  assert.equal(r.caps.length, 0, 'an unreadable section must not be treated as an absent one');
+  assert.ok(r.unobservedPoints > 0);
+});
+
+test('every blocking gap names a rule that exists', () => {
+  const ids = new Set(ALL_RULES.map((r) => r.id));
+  for (const p of Object.values(PERSONAS)) {
+    for (const gap of p.blocking ?? []) {
+      assert.ok(ids.has(gap.ruleId), `persona "${p.id}" blocks on unknown rule "${gap.ruleId}"`);
+      assert.ok(gap.floor >= 40 && gap.floor <= 75, `floor ${gap.floor} for ${gap.ruleId} is outside 40..75`);
+    }
+  }
+});
+
+test('blocking stays rare — at most two per persona', () => {
+  // If everything blocks, nothing does. Importance belongs in weights.
+  for (const p of Object.values(PERSONAS)) {
+    assert.ok((p.blocking ?? []).length <= 2, `persona "${p.id}" declares ${(p.blocking ?? []).length} blocking gaps`);
+  }
+});
+
+test('CTA detection covers the indirect phrasings people actually use', async () => {
+  // Regression: a narrow pattern list capped the sales score of profiles closing
+  // with a plain invitation. Once a check is a blocking gap, a false negative is
+  // no longer a couple of points — it drags the whole score to a ceiling.
+  const { hasCta } = await import('../src/text.ts');
+  for (const yes of [
+    'Always glad to hear from people working on ICU staffing or clinical education.',
+    'Happy to talk to anyone considering the same switch.',
+    'If you run a practice and your recall list lives in a spreadsheet, I would like to hear from you.',
+    'Feel free to drop me a line.',
+  ]) assert.ok(hasCta(yes), `should detect a CTA in: ${yes.slice(0, 50)}`);
+
+  for (const no of [
+    'Looking for a graduate role in thermal or structural engineering.',
+    'My expertise lies in fostering high-performing teams.',
+  ]) assert.ok(!hasCta(no), `should not see a CTA in: ${no.slice(0, 50)}`);
 });

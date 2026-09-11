@@ -1,5 +1,22 @@
 import { build, context } from 'esbuild';
-import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+
+/**
+ * Copy by write, never by `cp`.
+ *
+ * `cp` onto an existing file unlinks it first, which fails with EPERM on mounts
+ * that allow writes but not deletes — so a rebuild would succeed on one machine
+ * and die on another for reasons that have nothing to do with the code. `writeFile`
+ * truncates in place and needs no delete permission anywhere.
+ */
+async function copyFile(from, to) {
+  await writeFile(to, await readFile(from));
+}
+
+async function copyDir(from, to) {
+  await mkdir(to, { recursive: true });
+  for (const name of await readdir(from)) await copyFile(`${from}/${name}`, `${to}/${name}`);
+}
 
 const watch = process.argv.includes('--watch');
 const minify = process.argv.includes('--minify');
@@ -18,7 +35,7 @@ const options = {
 };
 
 async function copyCss() {
-  await cp('src/panel.css', 'dist/panel.css');
+  await copyFile('src/panel.css', 'dist/panel.css');
 }
 
 /**
@@ -37,11 +54,10 @@ async function buildFirefox() {
   manifest.browser_specific_settings = {
     gecko: { id: 'profile-score@kalyanprakash.github.io', strict_min_version: '128.0' },
   };
-  await rm('../build/firefox', { recursive: true, force: true });
-  await mkdir('../build/firefox/dist', { recursive: true });
+  await mkdir('../build/firefox', { recursive: true });
   await writeFile('../build/firefox/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
-  await cp('dist', '../build/firefox/dist', { recursive: true });
-  await cp('icons', '../build/firefox/icons', { recursive: true });
+  await copyDir('dist', '../build/firefox/dist');
+  await copyDir('icons', '../build/firefox/icons');
   console.log('firefox package -> build/firefox');
 }
 

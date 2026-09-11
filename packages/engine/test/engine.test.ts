@@ -380,6 +380,41 @@ test('an abstained blocking check never caps', () => {
   assert.ok(r.unobservedPoints > 0);
 });
 
+test('a cap worth less than three points is not reported at all', async () => {
+  const { ARCHETYPES } = await import('./fixtures/archetypes.ts');
+  const ALL_FIXTURES: Profile[] = [
+    ...Object.values(ARCHETYPES), strong, median, kalyan, kalyanLive, empty,
+    // The live reading that produced the one-point cap: everything below About
+    // unread, which is what the lazy-load bug left the extractor with.
+    (() => {
+      const p: Profile = structuredClone(kalyanLive);
+      const unread = ['experience', 'employerCount', 'education', 'skills', 'featured', 'recommendationsReceived'];
+      p.observed = (kalyanLive.observed ?? []).filter((k) => !unread.includes(k));
+      return p;
+    })(),
+  ];
+  // From the live panel: "Capped at 58 — would otherwise be 59". A one-point
+  // ceiling given a red block and first position in the advice reads as a crisis
+  // and is noise. Dropped rather than applied quietly, because a cap the panel
+  // does not explain is the invisible limit this whole design exists to avoid.
+  for (const profile of ALL_FIXTURES) {
+    for (const p of PERSONA_IDS) {
+      const r = scoreProfile(profile, p);
+      for (const cap of r.caps) {
+        assert.ok(
+          r.uncappedScore - cap.ceiling >= 3,
+          `${p}: reported a cap at ${cap.ceiling} against an uncapped ${r.uncappedScore} — too small to mean anything`,
+        );
+      }
+      // And whenever no cap is reported, the score must be the uncapped one.
+      // Otherwise dropping the cap would leave a ceiling with nothing explaining it.
+      if (r.caps.length === 0) {
+        assert.equal(r.score, r.uncappedScore, `${p}: score is capped but no cap is reported`);
+      }
+    }
+  }
+});
+
 test('every blocking gap names a rule that exists', () => {
   const ids = new Set(ALL_RULES.map((r) => r.id));
   for (const p of Object.values(PERSONAS)) {

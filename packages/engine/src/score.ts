@@ -7,6 +7,16 @@ import { ALL_RULES } from './rules/index.ts';
 import { clamp01 } from './text.ts';
 import { observe } from './observations.ts';
 
+/**
+ * Points a cap must remove before it is reported at all.
+ *
+ * Set from the UI consequence rather than the maths: the cap renders as a red
+ * block that reorders the advice, and "capped at 58 — would otherwise be 59" is a
+ * false alarm. Three points is the smallest difference that survives rounding and
+ * changes how a reader reads the band.
+ */
+const MIN_BIND = 3;
+
 function band(score: number): ScoreReport['band'] {
   if (score < 40) return 'weak';
   if (score < 60) return 'developing';
@@ -91,6 +101,12 @@ export function scoreProfile(profile: Profile, personaId: PersonaId = DEFAULT_PE
    *    the same reason every rule returns partial credit.
    *  - An ABSTAINED check never caps. If the section could not be read, we cannot
    *    claim it is missing; that is the whole point of abstention.
+   *  - It must be worth saying. A cap binding by a point or two changes nothing
+   *    about the advice but renders as a prominent red warning, so it reads as far
+   *    more serious than it is. Below MIN_BIND the cap is dropped entirely rather
+   *    than applied quietly — a ceiling the panel does not explain is exactly the
+   *    invisible limit this design exists to avoid, and one worth 1 point is not
+   *    worth explaining. As a gap closes the cap now fades out and then goes.
    */
   const caps: ScoreCap[] = [];
   for (const gap of persona.blocking ?? []) {
@@ -99,7 +115,7 @@ export function scoreProfile(profile: Profile, personaId: PersonaId = DEFAULT_PE
     const engageBelow = gap.engageBelow ?? 0.35;
     if (rule.ratio >= engageBelow) continue; // short of full marks, not blocking
     const ceiling = Math.round(gap.floor + (100 - gap.floor) * (rule.ratio / engageBelow));
-    if (ceiling >= uncappedScore) continue; // not binding
+    if (uncappedScore - ceiling < MIN_BIND) continue; // not binding, or too small to mean anything
     caps.push({
       ruleId: gap.ruleId, title: rule.title, ceiling, ratio: rule.ratio, because: gap.because,
     });

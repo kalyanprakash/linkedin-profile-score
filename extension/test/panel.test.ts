@@ -62,3 +62,29 @@ test('the panel never renders an empty score or a bare rule id', async () => {
   assert.ok(!/\b[a-z_]+\.[a-z_]+\b/.test(text.replace(/linkedin\.com|\d\.\d/g, '')), 'panel shows a raw rule id');
   dom.window.close();
 });
+
+test('the uncertainty note names the unread sections instead of counting checks', async () => {
+  // "11 checks could not read their section" is not something a person can act on,
+  // and it reads as a fault in the tool rather than a fact about the page. The
+  // sections have LinkedIn's own names so they can be checked against the page.
+  const dom = await mountPanel({
+    withSkills: false, withFeatured: false, withRecommendations: false,
+    withEducation: false, withExperience: false,
+  });
+  const note = dom.window.document.querySelector('.lps-note');
+  assert.ok(note, 'a partial reading must carry the uncertainty note');
+  const text = note!.textContent ?? '';
+  for (const section of ['Experience', 'Education', 'Skills', 'Featured', 'Recommendations']) {
+    assert.ok(text.includes(section), `the note should name ${section}; got "${text}"`);
+  }
+  assert.ok(!/\d+ checks could not read/.test(text), 'the note should not count checks');
+  assert.ok(/between \d+ and \d+/.test(text), 'the note must still carry the range');
+  dom.window.close();
+});
+
+test('a fully read profile shows no uncertainty note', async () => {
+  const dom = await mountPanel();
+  assert.equal(dom.window.document.querySelector('.lps-note'), null,
+    'nothing was unread, so there is no uncertainty to report');
+  dom.window.close();
+});

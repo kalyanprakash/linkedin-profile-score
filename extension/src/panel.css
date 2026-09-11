@@ -20,6 +20,13 @@
 }
 .lps-panel * { box-sizing: border-box; }
 
+/* ----------------------------------------------------------------- loading */
+/* Shown for the second or two it takes to walk the page and let the lazy cards
+   render. Deliberately plain: no number, because a number shown here would be
+   the half-read one this pass exists to prevent. */
+.lps-loading-title { font-size: 15px; font-weight: 600; }
+.lps-loading-note { margin: 6px 0 0; font-size: 13px; color: #66757a; }
+
 /* ------------------------------------------------------------------ header */
 .lps-head { display: flex; align-items: center; gap: 14px; position: relative; }
 .lps-scorewrap { display: flex; align-items: baseline; gap: 2px; }
@@ -158,6 +165,8 @@
   .lps-close { color: #7b8b8a; }
   .lps-close:hover { color: #e4eae9; }
   .lps-select { background: #1f282a; color: #e4eae9; border-color: #35403f; }
+
+  .lps-loading-note { color: #9aa9a8; }
 
   .lps-cap { background: #2b1412; border-color: #7a271a; }
   .lps-cap-head, .lps-cap-lift { color: #fda29b; }

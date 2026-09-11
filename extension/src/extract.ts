@@ -34,6 +34,24 @@ export const CARDS = {
   activity: 'Activity',
 } as const;
 
+/**
+ * Cards that are absent from the DOM until scrolled near, and are worth waiting for.
+ *
+ * Measured, not assumed: a scan at `document_idle` on a real profile read the top
+ * card, About and Activity and nothing else, so Experience, Education, Skills,
+ * Featured and Recommendations all abstained and the score came back as a 53-point
+ * range built on a headline and an About. `locales` is deliberately not here —
+ * most profiles have none, so waiting for it would always run the whole page.
+ */
+export const LAZY_CARDS = [
+  'featured', 'experience', 'education', 'skills', 'recommendations', 'activity',
+] as const;
+
+/** Which of those are not in the DOM right now. */
+export function missingCards(): string[] {
+  return LAZY_CARDS.filter((name) => card(name) === null);
+}
+
 /** Pre-SDUI anchors, for profiles not yet migrated. */
 const LEGACY_ANCHOR: Partial<Record<keyof typeof CARDS, string>> = {
   about: 'about',

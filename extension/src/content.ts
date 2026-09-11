@@ -1,4 +1,4 @@
-import { extractProfile } from './extract.ts';
+import { extractProfile, missingCards } from './extract.ts';
 import { readKey, writeKey } from './storage.ts';
 import { scoreProfile, scoreAllPersonas } from '../../packages/engine/src/score.ts';
 import { advise, type Recommendation } from '../../packages/engine/src/actions.ts';
@@ -21,6 +21,43 @@ function el<K extends keyof HTMLElementTagNameMap>(
 
 function bandLabel(band: ScoreReport['band']): string {
   return { weak: 'Needs work', developing: 'Developing', solid: 'Solid', strong: 'Strong' }[band];
+}
+
+/**
+ * Rule id → the section of the profile a person would recognise.
+ *
+ * Presentation, so it lives here rather than on the rule: the engine's dimensions
+ * are coarser than the page is, and a person looking for what went unread is
+ * looking for LinkedIn's own headings.
+ */
+const SECTION_OF: Array<[RegExp, string]> = [
+  [/^about\./, 'About'],
+  [/^experience\./, 'Experience'],
+  [/^education\./, 'Education'],
+  [/^skills\./, 'Skills'],
+  [/^featured\./, 'Featured'],
+  [/^recommendations\./, 'Recommendations'],
+  [/^activity\./, 'Recent activity'],
+  [/^headline\./, 'Headline'],
+  [/^banner\./, 'Banner image'],
+  [/^photo\./, 'Profile photo'],
+  [/^profile\.location/, 'Location'],
+  [/^profile\.contact_info/, 'Contact info'],
+];
+
+/** Distinct sections behind a set of abstained checks, in page order. */
+function unreadSections(abstained: ScoreReport['abstained']): string[] {
+  const names = new Set<string>();
+  for (const a of abstained) {
+    const hit = SECTION_OF.find(([re]) => re.test(a.id));
+    if (hit) names.add(hit[1]);
+  }
+  return SECTION_OF.map(([, name]) => name).filter((n) => names.has(n));
+}
+
+function list(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 }
 
 /**
@@ -115,14 +152,19 @@ function render(
   panel.append(goal);
 
   // ------------------------------------------------------------- uncertainty
+  // Naming the sections rather than counting the checks. "11 checks could not read
+  // their section" tells a person nothing they can act on and reads as a fault in
+  // the tool; "could not read: Experience, Skills" tells them what the number is
+  // missing and is checkable against the page in front of them.
   if (report.unobservedPoints > 0) {
+    const sections = unreadSections(report.abstained);
     const note = el('div', 'lps-note');
-    note.append(
-      el('strong', undefined, `Really between ${report.range.floor} and ${report.range.ceiling}. `),
-      document.createTextNode(
-        `${report.abstained.length} checks could not read their section — usually because it has not loaded yet. Scroll the page and hit Rescan.`,
-      ),
-    );
+    note.append(el('strong', undefined, `Really between ${report.range.floor} and ${report.range.ceiling}. `));
+    note.append(document.createTextNode(
+      sections.length
+        ? `Could not read: ${list(sections)}. Either you have no such section, or it had still not loaded. Hit Rescan to look again.`
+        : `${report.abstained.length} checks had nothing to measure. Hit Rescan to look again.`,
+    ));
     panel.append(note);
   }
 
@@ -186,6 +228,58 @@ function render(
   return panel;
 }
 
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * Force the lazily-hydrated cards into the DOM before scoring.
+ *
+ * Below the fold, LinkedIn does not render a card until it is scrolled near — so a
+ * scan at `document_idle` saw the top card, About and Activity and nothing else.
+ * Experience, Education, Skills, Featured and Recommendations abstained, the score
+ * was computed from a headline and an About, and the panel reported "really between
+ * 35 and 88". A 53-point band is not a score.
+ *
+ * Waiting passively for a MutationObserver only works if the user scrolls, and the
+ * old note asked them to. That is the tool asking the user to do its job: most
+ * people read the number and leave, so most people saw the half-read one. So walk
+ * the page, let each card hydrate, and put the scroll position back.
+ *
+ * Bounded on purpose, because this runs before the user sees anything: it stops as
+ * soon as every card is present, at the bottom of the page, or at the deadline.
+ */
+async function hydrate(deadlineMs = 4000): Promise<void> {
+  if (!missingCards().length) return;
+  // jsdom has no layout: scrollHeight is 0 and scrollTo is a no-op, so there is
+  // nothing to provoke and the loop would spin to its deadline for nothing.
+  if (!document.documentElement.scrollHeight || typeof window.scrollTo !== 'function') return;
+
+  const startY = window.scrollY;
+  const until = Date.now() + deadlineMs;
+  const step = Math.max(400, Math.round(window.innerHeight * 0.75));
+
+  for (let y = startY + step; Date.now() < until; y += step) {
+    window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
+    await sleep(150);
+    if (!missingCards().length) break;
+    // Re-read each pass: the page gets taller as cards arrive, so a height
+    // captured up front would stop the walk early on exactly the profiles that
+    // need it most.
+    if (y >= document.documentElement.scrollHeight) break;
+  }
+
+  window.scrollTo({ top: startY, behavior: 'instant' as ScrollBehavior });
+  await sleep(50);
+}
+
+/** Shown while hydrating, so the first number a person sees is not a half-read one. */
+function loadingPanel(): HTMLElement {
+  const panel = el('div', 'lps-panel lps-loading');
+  panel.id = PANEL_ID;
+  panel.append(el('div', 'lps-loading-title', 'Reading your profile…'));
+  panel.append(el('p', 'lps-loading-note', 'Checking every section before scoring, so the number is not built on half a page.'));
+  return panel;
+}
+
 async function readPersona(): Promise<PersonaId> {
   const stored = await readKey(STORAGE_KEY);
   return (stored as PersonaId) || DEFAULT_PERSONA;
@@ -198,20 +292,35 @@ async function writePersona(p: PersonaId): Promise<void> {
 async function run(): Promise<void> {
   let persona = await readPersona();
 
+  // Mount something immediately — hydration takes a second or two and a silent
+  // page looks like a broken extension.
+  document.body.append(loadingPanel());
+  await hydrate();
+
   const draw = (p: PersonaId) => {
     persona = p;
     void writePersona(p);
     const profile = extractProfile();
     const scrollTop = document.getElementById(PANEL_ID)?.scrollTop ?? 0;
     document.getElementById(PANEL_ID)?.remove();
-    const panel = render(scoreProfile(profile, p), profile, p, draw, () => draw(persona));
+    const panel = render(scoreProfile(profile, p), profile, p, draw, () => void rescan());
     document.body.append(panel);
     panel.scrollTop = scrollTop;
     return profile;
   };
 
+  // Rescan is pressed after the user has edited their profile, so it must provoke
+  // the lazy cards again — a fresh page means a fresh set of unrendered sections,
+  // and a second reading that sees less than the first would look like the fix
+  // lowered the score. Declared as a function so draw can reference it above.
+  async function rescan(): Promise<void> {
+    await hydrate(2500);
+    draw(persona);
+  }
+
   const profile = draw(persona);
   console.log('[profile-score] extracted', profile);
+  console.log('[profile-score] unread cards after hydration', missingCards());
   console.log('[profile-score] all personas', scoreAllPersonas(profile));
 
   // Cards below the fold hydrate lazily, so the first scan sees fewer sections

@@ -31,6 +31,23 @@ async function extract(opts: FixtureOptions = {}, path = '/in/dana-okonkwo/'): P
   }
 }
 
+/**
+ * The same, but hands back the module with the window still open — for the helpers
+ * that query the live DOM on each call rather than returning a snapshot.
+ */
+async function load(opts: FixtureOptions = {}, path = '/in/dana-okonkwo/') {
+  const dom = new JSDOM(`<!doctype html><html><body>${buildProfileHtml(opts)}</body></html>`, {
+    url: `https://www.linkedin.com${path}`,
+  });
+  const g = globalThis as Record<string, unknown>;
+  g.window = dom.window;
+  g.document = dom.window.document;
+  g.location = dom.window.location;
+  g.HTMLElement = dom.window.HTMLElement;
+  g.HTMLImageElement = dom.window.HTMLImageElement;
+  return await import(`../src/extract.ts?t=${Math.random()}`);
+}
+
 // ------------------------------------------------------------------- top card
 
 test('reads name, headline and location from the top card', async () => {
@@ -184,4 +201,27 @@ test('a present but empty section IS observed', async () => {
   const p = await extract();
   assert.ok(p.observed!.includes('about'));
   assert.ok(p.observed!.includes('experience'));
+});
+
+// ------------------------------------------------------- lazy-load detection
+// The live failure this exists to prevent: at `document_idle` a real profile had
+// only the top card, About and Activity in the DOM. Six cards were absent, eleven
+// checks abstained, and the panel reported a score "really between 35 and 88" —
+// computed from a headline and an About. The content script now walks the page to
+// provoke hydration before it scores, and this is the signal it acts on.
+
+test('missingCards reports the cards absent from the DOM', async () => {
+  const { missingCards } = await load({
+    withSkills: false, withFeatured: false, withRecommendations: false,
+    withEducation: false, withExperience: false,
+  });
+  const missing = missingCards();
+  for (const name of ['skills', 'featured', 'recommendations', 'education', 'experience']) {
+    assert.ok(missing.includes(name), `"${name}" is not on the page and must be reported missing`);
+  }
+});
+
+test('missingCards is empty once every card is present', async () => {
+  const { missingCards } = await load({});
+  assert.deepEqual(missingCards(), [], 'a fully rendered profile has nothing left to wait for');
 });

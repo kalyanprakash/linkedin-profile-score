@@ -27,7 +27,9 @@ report also carries a floor and a ceiling.
 **Blocking gaps cap the score.** Weights say how much something matters; a cap says
 a reader cannot make the decision at all. If no role is described, a job-search
 score cannot read as "solid" however good the rest is. Caps are graded, engage only
-on genuine absence, are always explained, and always name the fix that lifts them.
+on genuine absence, are always explained, and always name the fix that lifts them —
+and are dropped below a three-point bind, because "capped at 58, would otherwise be
+59" is a red warning about nothing.
 
 **Some things are reported, never priced.** Where the evidence is thin or the right
 answer genuinely depends on the person — the #OpenToWork signal is the worked
@@ -43,7 +45,14 @@ competing with one-off fixes on points it cannot win.
 
 Verified against the live DOM.
 
-**Your own profile** renders every card, and the extractor reads all of them.
+**Your own profile** renders every card — but not until you scroll to it. Measured on
+a real profile: at `document_idle` the DOM held the top card, About and Activity and
+nothing else. Experience, Education, Skills, Featured and Recommendations were simply
+absent, eleven checks abstained, and the reported score was "really between 35 and 88"
+off a headline and an About. So the content script walks the page itself before
+scoring, waits for each card, and puts the scroll position back. Waiting passively for
+a `MutationObserver` only works if the user scrolls, and asking them to in the panel
+copy was the tool delegating its own job to the person reading the number.
 
 **Other people's profiles are limited by LinkedIn, not by this code.** On a
 3rd-degree connection only the top card and activity feed render at all — About,
@@ -79,7 +88,7 @@ version unchanged.
 
 ```bash
 npm install
-npm test                              # 64 tests: engine, extractor, panel
+npm test                              # 69 tests: engine, extractor, panel
 npm run demo -- matrix                # every fixture against every goal
 npm run demo -- live job_search       # a full report
 npm run build:ext                     # → extension/dist and build/firefox

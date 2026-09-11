@@ -6,6 +6,7 @@ import { PERSONAS, DEFAULT_PERSONA } from './personas.ts';
 import { ALL_RULES } from './rules/index.ts';
 import { clamp01 } from './text.ts';
 import { observe } from './observations.ts';
+import { bandFor, bandReads, toNextBand } from './bands.ts';
 
 /**
  * Points a cap must remove before it is reported at all.
@@ -17,12 +18,6 @@ import { observe } from './observations.ts';
  */
 const MIN_BIND = 3;
 
-function band(score: number): ScoreReport['band'] {
-  if (score < 40) return 'weak';
-  if (score < 60) return 'developing';
-  if (score < 80) return 'solid';
-  return 'strong';
-}
 
 /**
  * Score a profile against one persona.
@@ -158,7 +153,10 @@ export function scoreProfile(profile: Profile, personaId: PersonaId = DEFAULT_PE
     uncappedScore,
     caps,
     range,
-    band: band(score),
+    band: bandFor(score).id,
+    bandLabel: bandFor(score).label,
+    bandReads: bandReads(score, persona.id),
+    toNextBand: toNextBand(score),
     rules: scored.sort((a, b) => b.available - a.available),
     dimensions: [...byDimension.values()].sort((a, b) => b.available - a.available),
     abstained,

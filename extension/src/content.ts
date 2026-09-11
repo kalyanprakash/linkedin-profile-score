@@ -19,9 +19,6 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-function bandLabel(band: ScoreReport['band']): string {
-  return { weak: 'Needs work', developing: 'Developing', solid: 'Solid', strong: 'Strong' }[band];
-}
 
 /**
  * Rule id → the section of the profile a person would recognise.
@@ -105,6 +102,10 @@ function render(
   const panel = el('div', 'lps-panel');
   panel.id = PANEL_ID;
 
+  // Computed up front: the standing block says whether the lead recommendation
+  // crosses the next band, so it needs the recommendation before it renders.
+  const { oneThing, habit, alsoWorthDoing } = advise(profile, persona);
+
   // ------------------------------------------------------------------ header
   const head = el('div', 'lps-head');
   const scoreWrap = el('div', 'lps-scorewrap');
@@ -113,7 +114,7 @@ function render(
     el('div', 'lps-outof', '/100'),
   );
   const headText = el('div', 'lps-headtext');
-  headText.append(el('div', 'lps-title', 'Profile score'), el('div', 'lps-band', bandLabel(report.band)));
+  headText.append(el('div', 'lps-title', 'Profile score'), el('div', 'lps-band', report.bandLabel));
   head.append(scoreWrap, headText);
 
   const rescan = el('button', 'lps-rescan', 'Rescan');
@@ -124,6 +125,25 @@ function render(
   close.onclick = () => panel.remove();
   head.append(rescan, close);
   panel.append(head);
+
+  // -------------------------------------------------------------- what it means
+  // The number and the band name are both abstractions. This is the line that
+  // says what a person on the other end of the profile can actually do with it,
+  // which is the only reason the score exists.
+  const standing = el('div', 'lps-standing');
+  standing.append(el('p', 'lps-reads', report.bandReads));
+  if (report.toNextBand) {
+    const gap = report.toNextBand;
+    const next = el('p', 'lps-next');
+    next.append(el('strong', undefined, `${gap.points} ${gap.points === 1 ? 'point' : 'points'} to "${gap.label}".`));
+    // Naming the boundary is only half of it. A band you cross by surprise is the
+    // same cliff in a different coat — worth saying when the fix below clears it.
+    if (oneThing && oneThing.scoreAfter >= (report.score + gap.points)) {
+      next.append(document.createTextNode(' The fix below clears it.'));
+    }
+    standing.append(next);
+  }
+  panel.append(standing);
 
   // ------------------------------------------------------------------ the cap
   // A ceiling nobody can see is worse than a low number, so it is stated in full
@@ -169,7 +189,6 @@ function render(
   }
 
   // ------------------------------------------------------- one thing + habit
-  const { oneThing, habit, alsoWorthDoing } = advise(profile, persona);
   if (oneThing) panel.append(oneThingBlock(oneThing, report));
   if (habit) panel.append(habitBlock(habit));
 

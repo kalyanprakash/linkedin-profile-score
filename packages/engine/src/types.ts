@@ -1,3 +1,5 @@
+import type { BandId } from './bands.ts';
+
 /**
  * Canonical profile shape the engine scores.
  * Every field is optional: extractors degrade (paste sees less than the plugin),
@@ -183,7 +185,19 @@ export interface ScoreReport {
    * neither legible. Present them side by side.
    */
   range: { floor: number; ceiling: number };
-  band: 'weak' | 'developing' | 'solid' | 'strong';
+  /**
+   * Where the score stands, and what that means for whoever reads the profile.
+   * See `bands.ts` — six states rather than four grades, and a sentence composed
+   * from the band and the goal, because the same number means different things
+   * to a recruiter and to a buyer.
+   */
+  band: BandId;
+  /** The band's name, e.g. "Readable". A state, not a mark. */
+  bandLabel: string;
+  /** What the reader of this profile can and cannot do with it, at this score. */
+  bandReads: string;
+  /** The next band up, when it is close enough to be worth chasing. */
+  toNextBand?: { label: string; points: number };
   rules: ScoredRule[];
   dimensions: DimensionScore[];
   /** Rules skipped because the extractor never saw the input. */

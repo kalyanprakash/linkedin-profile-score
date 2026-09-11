@@ -537,3 +537,59 @@ test('deltas are measured, not stored — re-running gives the same answer', asy
   const b = JSON.stringify(advise(kalyanLive, 'job_search').oneThing?.delta);
   assert.equal(a, b);
 });
+
+// ------------------------------------------------------------------ bands
+
+test('bands are contiguous, ordered, and cover every score', async () => {
+  const { BANDS, bandFor } = await import('../src/bands.ts');
+  for (let i = 1; i < BANDS.length; i++) {
+    assert.ok(BANDS[i].min < BANDS[i - 1].min, 'BANDS must be ordered highest first');
+  }
+  assert.equal(BANDS[BANDS.length - 1].min, 0, 'the lowest band must start at zero');
+  for (let s = 0; s <= 100; s++) assert.ok(bandFor(s), `no band covers ${s}`);
+  // Every boundary is a real transition, never two names for the same standing.
+  for (const b of BANDS) {
+    if (b.min === 0) continue;
+    assert.notEqual(bandFor(b.min).id, bandFor(b.min - 1).id, `no transition at ${b.min}`);
+  }
+});
+
+test('the corpus spreads across bands instead of collapsing into two', async () => {
+  // The bug this replaces: four bands with an edge at 60, against a corpus where
+  // half of all scores land between 50 and 69. Everything real read as either
+  // "Developing" or "Solid", and 59 vs 61 looked like a change of category.
+  const { ARCHETYPES } = await import('./fixtures/archetypes.ts');
+  const seen = new Set<string>();
+  for (const profile of [...Object.values(ARCHETYPES), strong, median, kalyanLive] as Profile[]) {
+    for (const p of PERSONA_IDS) seen.add(scoreProfile(profile, p).band);
+  }
+  assert.ok(seen.size >= 4, `only ${seen.size} bands used across the corpus: ${[...seen].join(', ')}`);
+});
+
+test('every band says what the reader can do, for every goal', async () => {
+  const { BANDS } = await import('../src/bands.ts');
+  const { bandReads } = await import('../src/bands.ts');
+  for (const b of BANDS) {
+    for (const p of PERSONA_IDS) {
+      const line = bandReads(b.min, p);
+      assert.ok(line.length > 30, `${b.id}/${p}: too terse to be useful`);
+      assert.ok(/^[A-Z]/.test(line), `${b.id}/${p}: starts lowercase — "${line}"`);
+      assert.ok(line.endsWith('.'), `${b.id}/${p}: not a sentence — "${line}"`);
+      // The label is a state, not a mark. A grade word here means the band has
+      // drifted back to telling people how they did rather than what happens next.
+      assert.ok(!/\b(good|bad|poor|excellent|average)\b/i.test(line), `${b.id}/${p}: reads as a grade`);
+    }
+  }
+});
+
+test('the distance to the next band is never negative and stops at the top', async () => {
+  const { toNextBand, BANDS } = await import('../src/bands.ts');
+  for (let s = 0; s <= 100; s++) {
+    const next = toNextBand(s);
+    if (!next) continue;
+    assert.ok(next.points > 0, `${s}: reported ${next.points} points to the next band`);
+    assert.ok(next.points <= 14, `${s}: ${next.points} points away is too far to be worth chasing`);
+  }
+  assert.equal(toNextBand(BANDS[0].min), undefined, 'the top band has nothing above it');
+  assert.equal(toNextBand(100), undefined);
+});

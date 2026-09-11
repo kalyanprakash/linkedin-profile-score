@@ -27,15 +27,27 @@
 .lps-loading-title { font-size: 15px; font-weight: 600; }
 .lps-loading-note { margin: 6px 0 0; font-size: 13px; color: #66757a; }
 
+/* --------------------------------------------------------------- standing */
+/* What the score means for whoever reads the profile. Sits directly under the
+   number because the number on its own is an abstraction. */
+.lps-standing { margin-top: 12px; }
+.lps-reads { margin: 0; font-size: 13.5px; color: #384347; }
+.lps-next { margin: 6px 0 0; font-size: 12.5px; color: #66757a; }
+.lps-next strong { color: #384347; font-weight: 600; }
+
 /* ------------------------------------------------------------------ header */
 .lps-head { display: flex; align-items: center; gap: 14px; position: relative; }
 .lps-scorewrap { display: flex; align-items: baseline; gap: 2px; }
 .lps-score { font-size: 42px; font-weight: 700; letter-spacing: -.025em; line-height: 1; }
 .lps-outof { font-size: 14px; color: #66757a; }
-.lps-weak { color: #b42318; }
-.lps-developing { color: #b54708; }
-.lps-solid { color: #175cd3; }
-.lps-strong { color: #067a5a; }
+/* Six bands, so the ramp has to read as a ramp — a continuous walk from red
+   through amber to green, not four unrelated colours. */
+.lps-unreadable { color: #912018; }
+.lps-bare { color: #b42318; }
+.lps-partial { color: #b54708; }
+.lps-readable { color: #a15c07; }
+.lps-convincing { color: #175cd3; }
+.lps-compelling { color: #067a5a; }
 .lps-headtext { display: flex; flex-direction: column; }
 .lps-title { font-weight: 600; }
 .lps-band { color: #66757a; font-size: 13px; }
@@ -155,10 +167,12 @@
 @media (prefers-color-scheme: dark) {
   .lps-panel { background: #161c1e; color: #e4eae9; border-color: #2a3436; }
   .lps-outof, .lps-band, .lps-intent, .lps-label, .lps-foot { color: #8b9b9d; }
-  .lps-weak { color: #f97066; }
-  .lps-developing { color: #f79009; }
-  .lps-solid { color: #84caff; }
-  .lps-strong { color: #3ccb9b; }
+  .lps-unreadable { color: #fda29b; }
+  .lps-bare { color: #f97066; }
+  .lps-partial { color: #f79009; }
+  .lps-readable { color: #fdb022; }
+  .lps-convincing { color: #84caff; }
+  .lps-compelling { color: #3ccb9b; }
 
   .lps-rescan { background: #1f282a; color: #9aa9a8; border-color: #35403f; }
   .lps-rescan:hover { background: #26312f; color: #e4eae9; }
@@ -167,6 +181,9 @@
   .lps-select { background: #1f282a; color: #e4eae9; border-color: #35403f; }
 
   .lps-loading-note { color: #9aa9a8; }
+  .lps-reads { color: #c8d3d2; }
+  .lps-next { color: #8b9b9d; }
+  .lps-next strong { color: #e4eae9; }
 
   .lps-cap { background: #2b1412; border-color: #7a271a; }
   .lps-cap-head, .lps-cap-lift { color: #fda29b; }

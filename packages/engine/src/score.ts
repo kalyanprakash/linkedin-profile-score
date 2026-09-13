@@ -7,6 +7,7 @@ import { ALL_RULES } from './rules/index.ts';
 import { clamp01 } from './text.ts';
 import { observe } from './observations.ts';
 import { bandFor, bandReads, toNextBand } from './bands.ts';
+import { stageOf } from './tenure.ts';
 
 /**
  * Points a cap must remove before it is reported at all.
@@ -32,6 +33,13 @@ const MIN_BIND = 3;
 export function scoreProfile(profile: Profile, personaId: PersonaId = DEFAULT_PERSONA): ScoreReport {
   const persona = PERSONAS[personaId] ?? PERSONAS[DEFAULT_PERSONA];
 
+  /**
+   * Career stage layers over the persona's weights — it changes what is expected,
+   * never what is earned. Undefined when no role carries a readable date, in which
+   * case every multiplier below is 1 and this does nothing at all.
+   */
+  const stage = stageOf(profile);
+
   const scored: ScoredRule[] = [];
   const abstained: ScoreReport['abstained'] = [];
   let rawAvailable = 0;
@@ -39,7 +47,7 @@ export function scoreProfile(profile: Profile, personaId: PersonaId = DEFAULT_PE
   let rawUnobserved = 0;
 
   for (const rule of ALL_RULES) {
-    const weight = persona.weights[rule.id] ?? 1;
+    const weight = (persona.weights[rule.id] ?? 1) * (stage?.stage.weights[rule.id] ?? 1);
     if (weight === 0) continue; // not measured for this persona
 
     const available = rule.base * weight;
@@ -109,7 +117,11 @@ export function scoreProfile(profile: Profile, personaId: PersonaId = DEFAULT_PE
     if (!rule) continue;             // abstained, or not measured for this persona
     const engageBelow = gap.engageBelow ?? 0.35;
     if (rule.ratio >= engageBelow) continue; // short of full marks, not blocking
-    const ceiling = Math.round(gap.floor + (100 - gap.floor) * (rule.ratio / engageBelow));
+    // The stage moves the ceiling, not the gap. Sixteen years with nothing written
+    // under any role is a different failure from one year with a thin paragraph,
+    // and clamped so no stage can invent a cap the rubric would not otherwise reach.
+    const floor = clampFloor(gap.floor + (stage?.stage.blockingFloorShift[gap.ruleId] ?? 0));
+    const ceiling = Math.round(floor + (100 - floor) * (rule.ratio / engageBelow));
     if (uncappedScore - ceiling < MIN_BIND) continue; // not binding, or too small to mean anything
     caps.push({
       ruleId: gap.ruleId, title: rule.title, ceiling, ratio: rule.ratio, because: gap.because,
@@ -153,6 +165,7 @@ export function scoreProfile(profile: Profile, personaId: PersonaId = DEFAULT_PE
     uncappedScore,
     caps,
     range,
+    stage: stage && { id: stage.stage.id, label: stage.stage.label, years: stage.years },
     band: bandFor(score).id,
     bandLabel: bandFor(score).label,
     bandReads: bandReads(score, persona.id),
@@ -173,6 +186,11 @@ export function scoreAllPersonas(profile: Profile): Record<PersonaId, number> {
     out[id] = scoreProfile(profile, id).score;
   }
   return out;
+}
+
+/** Blocking floors stay inside the range the personas themselves declare. */
+function clampFloor(n: number): number {
+  return Math.min(85, Math.max(35, n));
 }
 
 function round1(n: number): number {

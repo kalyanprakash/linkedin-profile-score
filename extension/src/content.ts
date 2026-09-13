@@ -52,6 +52,15 @@ function unreadSections(abstained: ScoreReport['abstained']): string[] {
   return SECTION_OF.map(([, name]) => name).filter((n) => names.has(n));
 }
 
+/** "16 years", "1 year", "18 months" — whole units, because a decimal reads as precision we do not have. */
+function formatYears(years: number): string {
+  if (years < 2) {
+    const months = Math.max(1, Math.round(years * 12));
+    return `${months} month${months === 1 ? '' : 's'}`;
+  }
+  return `${Math.round(years)} years`;
+}
+
 function list(items: string[]): string {
   if (items.length <= 1) return items[0] ?? '';
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
@@ -132,6 +141,14 @@ function render(
   // which is the only reason the score exists.
   const standing = el('div', 'lps-standing');
   standing.append(el('p', 'lps-reads', report.bandReads));
+  // Says what the score was compared against, so a graduate is not left wondering
+  // why they are not being asked for three recommendations and a veteran can see
+  // why an undescribed career costs more. Names the career the roles describe —
+  // never the person.
+  if (report.stage) {
+    standing.append(el('p', 'lps-stage',
+      `Read against the ${formatYears(report.stage.years)} of experience your roles describe.`));
+  }
   if (report.toNextBand) {
     const gap = report.toNextBand;
     const next = el('p', 'lps-next');

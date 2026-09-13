@@ -593,3 +593,89 @@ test('the distance to the next band is never negative and stops at the top', asy
   assert.equal(toNextBand(BANDS[0].min), undefined, 'the top band has nothing above it');
   assert.equal(toNextBand(100), undefined);
 });
+
+// ------------------------------------------------------------ career stage
+
+test('career length is unioned, never summed', async () => {
+  const { careerYears } = await import('../src/tenure.ts');
+  // The contractor case. Twelve engagements inside one span is one span — summing
+  // durations would hand the most misjudged profile in the corpus a veteran rubric.
+  const overlapping: Profile = {
+    experience: [
+      { dateRange: 'Jan 2021 - Jun 2021' },
+      { dateRange: 'Feb 2021 - Jul 2021' },
+      { dateRange: 'Mar 2021 - Dec 2021' },
+    ],
+  };
+  const years = careerYears(overlapping, new Date('2026-09-01'));
+  assert.ok(years !== undefined && years <= 1.1, `expected about one year, got ${years}`);
+});
+
+test('career length reads present, gaps and bare years', async () => {
+  const { careerYears } = await import('../src/tenure.ts');
+  const now = new Date('2026-09-01');
+  const twoYears = careerYears({ experience: [{ dateRange: 'Sep 2024 - Present' }] }, now);
+  assert.ok(twoYears !== undefined && Math.abs(twoYears - 2) <= 0.2, `expected about 2 years, got ${twoYears}`);
+  // A genuine gap is not counted as worked time.
+  const gapped = careerYears({
+    experience: [{ dateRange: 'Jan 2010 - Dec 2011' }, { dateRange: 'Jan 2020 - Dec 2021' }],
+  }, now);
+  assert.ok(gapped !== undefined && gapped < 5, `a ten-year gap must not count as career, got ${gapped}`);
+});
+
+test('an unreadable timeline abstains rather than guessing a stage', async () => {
+  const { careerYears, stageOf } = await import('../src/tenure.ts');
+  assert.equal(careerYears({ experience: [{ title: 'Engineer' }] }), undefined);
+  assert.equal(careerYears({}), undefined);
+  assert.equal(stageOf({ experience: [{ title: 'Engineer' }] }), undefined);
+  // And the score is then identical to what it would be with no stage layer at all.
+  assert.equal(scoreProfile(strong, 'job_search').stage, undefined);
+});
+
+test('stage moves what is expected, not what a good profile earns', async () => {
+  const { ARCHETYPES } = await import('./fixtures/archetypes.ts');
+  // Two profiles describing a 15+ year career. One writes its roles up, one does
+  // not. The rubric must separate them — that is the entire point of the feature.
+  const described = scoreProfile(ARCHETYPES.nurse as Profile, 'job_search');
+  const undescribed = scoreProfile(kalyanLive, 'job_search');
+  assert.equal(described.stage?.id, 'veteran');
+  assert.equal(undescribed.stage?.id, 'veteran');
+  assert.ok(
+    described.score - undescribed.score >= 20,
+    `a veteran who describes their work must clearly outrank one who does not (${described.score} vs ${undescribed.score})`,
+  );
+  assert.ok(undescribed.caps.length > 0, 'a long undescribed career must cap');
+  assert.equal(described.caps.length, 0, 'a long well-described career must not cap');
+});
+
+test('a short career is not capped for being short', async () => {
+  const { ARCHETYPES } = await import('./fixtures/archetypes.ts');
+  const grad = scoreProfile(ARCHETYPES.newGrad as Profile, 'job_search');
+  assert.equal(grad.stage?.id, 'early');
+  assert.equal(grad.caps.length, 0, 'a graduate must not be capped for a career that has not happened');
+  // And they are still held to what they can control: one role, written thinly,
+  // still costs. Leniency about volume is not leniency about writing.
+  const depth = grad.rules.find((r) => r.id === 'experience.description_coverage');
+  assert.ok(depth && depth.ratio < 1, 'a thin description must still score short of full marks');
+});
+
+test('every stage declares a floor shift and only weights rules that exist', async () => {
+  const { STAGES } = await import('../src/tenure.ts');
+  const ids = new Set(ALL_RULES.map((r) => r.id));
+  for (const s of STAGES) {
+    for (const [ruleId, shift] of Object.entries(s.blockingFloorShift)) {
+      assert.ok(ids.has(ruleId), `stage "${s.id}" shifts the floor of unknown rule "${ruleId}"`);
+      assert.ok(Math.abs(shift) <= 20, `${s.id} shifts ${ruleId} too far`);
+      // Only gaps whose evidence accumulates with a career may move. Shifting a
+      // gap about posting or contact details by career length is the bug the
+      // nurse archetype caught.
+      assert.ok(ruleId.startsWith('experience.'), `stage "${s.id}" must not shift "${ruleId}" by career length`);
+    }
+    for (const key of Object.keys(s.weights)) {
+      assert.ok(ids.has(key), `stage "${s.id}" weights unknown rule "${key}"`);
+    }
+    // Kept short on purpose: a long list here means persona weighting is being
+    // duplicated under a different name.
+    assert.ok(Object.keys(s.weights).length <= 5, `stage "${s.id}" weights too many rules`);
+  }
+});

@@ -1,4 +1,5 @@
 import type { BandId } from './bands.ts';
+import type { StageId } from './tenure.ts';
 
 /**
  * Canonical profile shape the engine scores.
@@ -185,6 +186,11 @@ export interface ScoreReport {
    * neither legible. Present them side by side.
    */
   range: { floor: number; ceiling: number };
+  /**
+   * The career length the profile describes, and the rubric it was read against.
+   * Absent when no role carried a readable date — the stage then changed nothing.
+   */
+  stage?: { id: StageId; label: string; years: number };
   /**
    * Where the score stands, and what that means for whoever reads the profile.
    * See `bands.ts` — six states rather than four grades, and a sentence composed

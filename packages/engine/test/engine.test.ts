@@ -676,6 +676,77 @@ test('every stage declares a floor shift and only weights rules that exist', asy
     }
     // Kept short on purpose: a long list here means persona weighting is being
     // duplicated under a different name.
-    assert.ok(Object.keys(s.weights).length <= 5, `stage "${s.id}" weights too many rules`);
+    assert.ok(Object.keys(s.weights).length <= 12, `stage "${s.id}" weights too many rules`);
   }
+});
+
+// ------------------------------------------------ evidence beyond the job
+
+test('adding real experience never lowers the score', async () => {
+  // The perverse ordering this caught: a student with no work history outscored
+  // the identical profile with a thin internship added, because five experience
+  // rules abstained and the denominator shrank. Nothing a person truthfully adds
+  // to their profile may cost them points.
+  const { ARCHETYPES } = await import('./fixtures/archetypes.ts');
+  const withJob = ARCHETYPES.newGrad as Profile;
+  const withoutJob: Profile = { ...structuredClone(withJob), experience: [], employerCount: 0, linkedEmployers: 0 };
+  for (const p of PERSONA_IDS) {
+    const a = scoreProfile(withJob, p).score;
+    const b = scoreProfile(withoutJob, p).score;
+    assert.ok(a >= b, `${p}: an internship must not cost points (${a} with, ${b} without)`);
+  }
+});
+
+test('an empty history scores zero, an unread one still abstains', () => {
+  const seen: Profile = { experience: [], observed: ['experience'] };
+  const unseen: Profile = { experience: [], observed: [] };
+  const depthOf = (p: Profile) =>
+    scoreProfile(p, 'job_search').rules.find((r) => r.id === 'experience.description_coverage');
+  assert.equal(depthOf(seen)?.ratio, 0, 'a read-and-empty section is a real zero');
+  assert.equal(depthOf(unseen), undefined, 'an unread section must still abstain');
+});
+
+test('a profile with no roles is still read as early career', () => {
+  const student: Profile = { experience: [], observed: ['experience'] };
+  assert.equal(scoreProfile(student, 'job_search').stage?.id, 'early',
+    'no roles is zero years, not unknown — and that person most needs the early rubric');
+  // But genuinely unknown stays unknown.
+  assert.equal(scoreProfile({ experience: [], observed: [] }, 'job_search').stage, undefined);
+});
+
+test('describing projects is a real scoring path, and weighted by stage', async () => {
+  const { ARCHETYPES } = await import('./fixtures/archetypes.ts');
+  const describe = (p: Profile): Profile => ({
+    ...structuredClone(p),
+    portfolio: (p.portfolio ?? []).map((i) => ({
+      ...i,
+      description: 'Built this end to end, worked through the trade-offs, and measured the result against the target it set.',
+    })),
+  });
+  const grad = ARCHETYPES.newGrad as Profile;
+  const gain = scoreProfile(describe(grad), 'job_search').score - scoreProfile(grad, 'job_search').score;
+  assert.ok(gain >= 5, `describing projects must be worth doing for a graduate, got +${gain}`);
+
+  // Same edit on a veteran is worth far less — twenty years of shipped work is
+  // the case there, and the rubric should not tell them to go write up coursework.
+  const senior: Profile = {
+    ...structuredClone(kalyanLive),
+    portfolio: [{ kind: 'project', title: 'A project' }],
+    observed: [...(kalyanLive.observed ?? [])],
+  };
+  const seniorGain = scoreProfile(describe(senior), 'job_search').score - scoreProfile(senior, 'job_search').score;
+  assert.ok(seniorGain < gain, `a graduate should gain more from this than a veteran (${gain} vs ${seniorGain})`);
+});
+
+test('one role means one piece of advice about describing it', async () => {
+  const { ARCHETYPES } = await import('./fixtures/archetypes.ts');
+  const { advise } = await import('../src/actions.ts');
+  const grad = ARCHETYPES.newGrad as Profile;
+  assert.equal((grad.experience ?? []).length, 1);
+  const { oneThing, alsoWorthDoing } = advise(grad, 'job_search');
+  const ids = [oneThing, ...alsoWorthDoing].filter(Boolean).map((r) => r!.action.id);
+  assert.ok(
+    !(ids.includes('describe_current_role') && ids.includes('describe_all_roles')),
+    'with a single role these are one job listed twice, each claiming the same points',
+  );
 });

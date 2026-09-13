@@ -81,6 +81,8 @@ export const STAGES: Stage[] = [
       'experience.outcome_language': 1.2,
       // Nobody is hiring on the degree any more.
       'education.present': 0.4,
+      // A portfolio still helps, but twenty years of shipped work is the case.
+      'portfolio.present': 0.5,
     },
   },
   {
@@ -95,6 +97,7 @@ export const STAGES: Stage[] = [
       'experience.description_coverage': 1.25,
       'experience.current_role_detail': 1.15,
       'education.present': 0.6,
+      'portfolio.present': 0.7,
     },
   },
   {
@@ -120,6 +123,28 @@ export const STAGES: Stage[] = [
       'skills.count': 0.7,
       // At this stage it is the main evidence there is.
       'education.present': 1.8,
+      // The heart of this stage. With one role and one manager, what a person
+      // built is the case they have — so the rubric has to give them a way to
+      // make it, and has to reward describing it as seriously as a job.
+      'portfolio.present': 2.8,
+      'portfolio.described': 3.2,
+      // The other side of the same judgement. With one internship on the page,
+      // a third paragraph about it is worth less than describing three separate
+      // pieces of work — so the role rules stop out-weighing the portfolio 4:1.
+      'experience.description_coverage': 0.45,
+      'experience.current_role_detail': 0.45,
+      'experience.quantified': 0.45,
+      'experience.outcome_language': 0.45,
+      // Having held no job at all is not free. Every other experience rule
+      // abstains when there are no roles — you cannot describe what you have not
+      // done — so without this the denominator shrinks and a profile with no work
+      // history outscores the same profile with an internship on it. Whether you
+      // have worked yet is the one experience question a student can still answer,
+      // so it carries the weight the abstaining rules gave up.
+      'experience.present': 1.6,
+      // What they post is evidence too: at two years, thinking out loud about
+      // the work is often the only public record of how they think.
+      'activity.recency': 1.5,
     },
   },
 ];
@@ -173,7 +198,13 @@ function interval(dateRange: string, now: number): [number, number] | null {
  */
 export function careerYears(profile: Profile, now = new Date()): number | undefined {
   const roles = profile.experience ?? [];
-  if (!roles.length) return undefined;
+  if (!roles.length) {
+    // No roles is not the same as no information. If the Experience section was
+    // actually read and is empty, the career length is zero — and it is precisely
+    // the person with no job yet who most needs to be read as early-career. Only
+    // an UNREAD section leaves the stage genuinely unknown.
+    return profile.observed?.includes('experience') ? 0 : undefined;
+  }
 
   const nowMonth = monthsSince1900(now.getFullYear(), now.getMonth());
   const spans = roles

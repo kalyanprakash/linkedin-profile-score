@@ -25,6 +25,10 @@ export const kalyan: Profile = {
 
 /** A profile doing most things right. Guards against a rubric that can only score low. */
 export const strong: Profile = {
+  portfolio: [
+    { kind: 'project', title: 'Fleet migration tooling', description: 'Built the tooling that moved 400 services onto the new runtime, cutting the per-team migration from three weeks to two days.' },
+    { kind: 'certification', title: 'AWS Solutions Architect — Professional', description: 'Renewed 2025, covering multi-account architecture and cost governance at scale.' },
+  ],
   name: 'Test Strong',
   headline:
     'VP Engineering | Scaling platform teams from 10 to 100 engineers | Distributed systems, developer productivity, SRE',
@@ -79,7 +83,7 @@ export const strong: Profile = {
   location: 'Amsterdam, Netherlands',
   contactInfoAvailable: true,
   education: [{ school: 'Delft University of Technology', degree: 'MSc Computer Science' }],
-  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education', 'employerCount'],
+  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education', 'employerCount', 'portfolio'],
 };
 
 /** Everything visible, everything empty. The genuine floor. */
@@ -100,11 +104,12 @@ export const empty: Profile = {
   education: [],
   employerCount: 0,
   linkedEmployers: 0,
-  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education'],
+  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education', 'portfolio'],
 };
 
 /** Median case: complete but unremarkable. Should land mid-range, not at either extreme. */
 export const median: Profile = {
+  portfolio: [{ kind: 'certification', title: 'Scrum Master' }],
   name: 'Test Median',
   headline: 'Senior Software Engineer at Contoso',
   about:
@@ -132,7 +137,7 @@ export const median: Profile = {
   location: 'Manchester, United Kingdom',
   contactInfoAvailable: false,
   education: [{ school: 'University of Manchester', degree: 'BSc' }],
-  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education', 'employerCount'],
+  observed: ['headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable', 'education', 'employerCount', 'portfolio'],
 };
 
 /**
@@ -180,5 +185,6 @@ export const kalyanLive: Profile = {
   ],
   recommendationsReceived: 4,
   activity: { lastPostDaysAgo: 122, postsLast30d: 0 },
-  observed: ['name', 'headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'recommendationsReceived', 'activity', 'customUrl', 'location', 'contactInfoAvailable', 'education', 'employerCount'],
+  portfolio: [],
+  observed: ['name', 'headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo', 'recommendationsReceived', 'activity', 'customUrl', 'location', 'contactInfoAvailable', 'education', 'employerCount', 'portfolio'],
 };

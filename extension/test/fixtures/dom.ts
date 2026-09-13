@@ -25,6 +25,7 @@ export interface FixtureOptions {
   withSkills?: boolean;
   withFeatured?: boolean;
   withRecommendations?: boolean;
+  withProjects?: boolean;
   withEducation?: boolean;
   withExperience?: boolean;
   /** Omit the /company/ link on the second employer. */
@@ -89,6 +90,7 @@ export function buildProfileHtml(o: FixtureOptions = {}): string {
   const {
     withAbout = true, withSkills = true, withFeatured = true,
     withRecommendations = true, withEducation = true, withExperience = true,
+    withProjects = true,
     unlinkedSecondEmployer = false, framedPhoto = false,
     openToWork = false, banner = false,
   } = o;
@@ -169,6 +171,18 @@ export function buildProfileHtml(o: FixtureOptions = {}): string {
     <p>Received (3)</p><p>Given (1)</p>
   `) : '';
 
+  // Projects. The componentkey name here is a guess — LinkedIn only renders this
+  // card for people who have one, so it was not on the profile the other selectors
+  // were read from. Matched by substring for exactly that reason.
+  const projects = withProjects ? card('ProjectsTopLevelSection', `
+    <h2>Projects</h2>
+    <ul>
+      <li><p><span>Realtime ingest pipeline</span></p>
+          <p><span>Built a streaming ingest path that cut end-to-end latency from minutes to under five seconds.</span></p></li>
+      <li><p><span>Internal design system</span></p></li>
+    </ul>
+  `) : '';
+
   // "…website4mo" reproduces textContent running adjacent nodes together.
   const activity = card('Activity', `
     <h2>Activity</h2>
@@ -178,6 +192,6 @@ export function buildProfileHtml(o: FixtureOptions = {}): string {
   `);
 
   return `<main><section>
-    ${topcard}${bannerImg}${about}${experience}${skills}${featured}${education}${recommendations}${activity}
+    ${topcard}${bannerImg}${about}${experience}${skills}${featured}${education}${recommendations}${projects}${activity}
   </section></main>`;
 }

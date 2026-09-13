@@ -51,6 +51,15 @@ export interface Action {
   classFor: (persona: PersonaId) => ActionClass;
   /** Produce the fixed state, for simulation. Mutates the copy it is given. */
   apply: (p: Profile) => void;
+  /**
+   * Whether this action is a distinct thing to do on THIS profile.
+   *
+   * Not the same as "would it change the score" — that is already filtered. This
+   * is for actions that collapse into another one on some profiles: told to a
+   * graduate with a single internship, "describe every role" and "describe your
+   * current role" are one job listed twice, each claiming the same points.
+   */
+  appliesTo?: (p: Profile) => boolean;
 }
 
 const CLASS_RANK: Record<ActionClass, number> = {
@@ -124,6 +133,7 @@ export const ACTIONS: Action[] = [
   },
   {
     id: 'describe_all_roles',
+    appliesTo: (p) => (p.experience ?? []).length > 1,
     label: 'Describe every role, not just the current one',
     rules: ['experience.description_coverage', 'experience.quantified', 'experience.outcome_language'],
     consequence: (p) => {
@@ -206,6 +216,38 @@ export const ACTIONS: Action[] = [
       p.skillsDeclaredCount = 26;
       // Pad with their own vocabulary, not someone else's discipline.
       p.skills = [...(p.skills ?? []), ...ownTerms(p, 6)];
+    },
+  },
+  {
+    id: 'add_projects',
+    label: 'Add two or three projects, and say what each one did',
+    rules: ['portfolio.present', 'portfolio.described'],
+    consequence: (p) => {
+      const items = p.portfolio ?? [];
+      if (!items.length) {
+        return 'Your job titles are the only claim on this profile right now, and early in a career they carry the least. A project is a claim you can make yourself: what you built, what it was for, and what happened.';
+      }
+      const bare = items.filter((i) => (i.description ?? '').trim().split(/\s+/).filter(Boolean).length < 6).length;
+      return `${bare} of your ${items.length} entries are a title and nothing else. A reader can see that the thing exists but not what you did with it.`;
+    },
+    // Not polish, and not only for graduates: this is the substance of the case
+    // when there is not yet twenty years of shipped work to point at.
+    classFor: () => 'substance',
+    apply: (p) => {
+      const existing = p.portfolio ?? [];
+      const described = (title: string) => ({
+        kind: 'project' as const,
+        title,
+        description:
+          'Built and shipped this end to end, working through the design and the trade-offs, and measured the result against what it set out to improve.',
+      });
+      // Describe what is already there before inventing more of it — the same
+      // monotonic rule the rest of the simulation follows.
+      const filled = existing.map((i) =>
+        (i.description ?? '').trim().length >= 30 ? i : { ...i, ...described(i.title ?? 'project') },
+      );
+      while (filled.length < 3) filled.push(described(`project ${filled.length + 1}`));
+      p.portfolio = filled;
     },
   },
   {
@@ -341,6 +383,7 @@ export function advise(profile: Profile, persona: PersonaId): Advice {
     // Skip anything that would change nothing: every rule it touches is already
     // full marks, or was never measured for this persona.
     .filter((a) => a.rules.some((id) => imperfect.has(id)))
+    .filter((a) => a.appliesTo?.(profile) ?? true)
     .map((a) => simulate(profile, persona, a, before));
 
   const suspect = candidates.filter((c) => c.delta < 0);

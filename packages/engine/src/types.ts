@@ -23,6 +23,21 @@ export interface FeaturedItem {
   hasCustomThumbnail?: boolean;
 }
 
+/**
+ * Evidence of capability that is not a job.
+ *
+ * Everything else in this rubric reads the work history, which quietly assumes the
+ * person has one. A new graduate's evidence lives in Projects, Publications,
+ * coursework and what they post — so measuring only role descriptions leaves them
+ * no way to score well by doing the right thing, which is a defect in the rubric
+ * rather than a fact about them.
+ */
+export interface Evidence {
+  kind: 'project' | 'publication' | 'certification' | 'volunteer' | 'honor' | 'course';
+  title?: string;
+  description?: string;
+}
+
 export interface Profile {
   name?: string;
   headline?: string;
@@ -48,7 +63,8 @@ export interface Profile {
    */
   skillsDeclaredCount?: number;
   featured?: FeaturedItem[];
-  certifications?: string[];
+  /** Projects, publications, certifications, volunteering, honours, coursework. */
+  portfolio?: Evidence[];
   recommendationsReceived?: number;
 
   banner?: { present?: boolean; isDefault?: boolean };

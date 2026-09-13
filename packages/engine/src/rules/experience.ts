@@ -1,4 +1,4 @@
-import { ABSTAIN, type Rule, type Experience } from '../types.ts';
+import { ABSTAIN, type Rule, type RuleResult, type Experience } from '../types.ts';
 import { dutyPhraseCount, outcomeVerbCount, pct, quantHits, ramp, words } from '../text.ts';
 import { saw } from './util.ts';
 
@@ -36,6 +36,31 @@ function weightedScore(list: Experience[], score: (e: Experience) => number): nu
   return list.reduce((acc, e, i) => acc + score(e) * w[i], 0) / total;
 }
 
+/**
+ * The verdict when the Experience section was read and holds no roles.
+ *
+ * Scored zero, not abstained. Abstaining looks generous and is the opposite:
+ * every experience rule dropping out shrinks the denominator, so a profile with
+ * NO work history outscored the identical profile with a thin internship added to
+ * it — adding real experience made the number go down. That is the same
+ * abstention inflation the `range` bounds exist for, wearing a different hat, and
+ * it breaks the one invariant this rubric will not bend: nothing a person
+ * truthfully adds may cost them points.
+ *
+ * Abstention still applies when the section was never READ. "You have no roles"
+ * and "we could not see your roles" remain different answers.
+ *
+ * The severity of the zero is a weighting question, and career stage answers it:
+ * at under two years these rules are scaled right down, so having no job yet is a
+ * real gap and a small one.
+ */
+const NO_ROLES: RuleResult = {
+  ratio: 0,
+  observed: 'No roles listed.',
+  reason: 'There is no work history on the profile to read.',
+  fix: 'Add any paid, placement or voluntary role you have held. If there is genuinely none yet, projects and coursework are the evidence to lead with instead.',
+};
+
 export const experienceRules: Rule[] = [
   {
     id: 'experience.present',
@@ -64,7 +89,7 @@ export const experienceRules: Rule[] = [
     evaluate({ profile }) {
       if (!saw(profile, 'experience')) return ABSTAIN;
       const list = profile.experience || [];
-      if (list.length === 0) return ABSTAIN; // absence handled by experience.present
+      if (list.length === 0) return NO_ROLES;
 
       const filled = list.filter((e) => descriptionDepth(e) >= 0.5);
       const ratio = weightedScore(list, descriptionDepth);
@@ -94,7 +119,7 @@ export const experienceRules: Rule[] = [
       if (!saw(profile, 'experience')) return ABSTAIN;
       const list = profile.experience || [];
       const current = list.find((e) => e.current) || list[0];
-      if (!current) return ABSTAIN;
+      if (!current) return list.length === 0 ? NO_ROLES : ABSTAIN;
 
       const wc = words(current.description || '').length;
       const ratio = ramp(wc, 0, 90);
@@ -115,7 +140,7 @@ export const experienceRules: Rule[] = [
     evaluate({ profile }) {
       if (!saw(profile, 'experience')) return ABSTAIN;
       const list = (profile.experience || []).filter(described);
-      if (list.length === 0) return ABSTAIN; // nothing written yet; coverage rule owns that
+      if (list.length === 0) return NO_ROLES;
 
       const withNumbers = list.filter((e) => quantHits(e.description || '').length > 0);
       const ratio = withNumbers.length / list.length;
@@ -136,7 +161,7 @@ export const experienceRules: Rule[] = [
     evaluate({ profile }) {
       if (!saw(profile, 'experience')) return ABSTAIN;
       const list = (profile.experience || []).filter(described);
-      if (list.length === 0) return ABSTAIN;
+      if (list.length === 0) return NO_ROLES;
 
       // Per role, not distinct verbs across the section. Counting variety punished
       // anyone whose roles are genuinely similar — a contractor doing the same job

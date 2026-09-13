@@ -15,7 +15,7 @@ import type { Profile } from '../../src/types.ts';
 const observedAll = [
   'name', 'headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo',
   'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable',
-  'education', 'employerCount',
+  'education', 'employerCount', 'portfolio',
 ];
 
 /** 12 short engagements. Tests recency weighting and ratios over many roles. */
@@ -181,6 +181,13 @@ export const newGrad: Profile = {
   skills: ['SolidWorks', 'FEA', 'Thermal Analysis', 'MATLAB', 'CAD', 'Ansys'],
   skillsDeclaredCount: 11,
   featured: [],
+  // Listed, but as bare titles — which is what almost every graduate profile
+  // actually looks like, and the precise state the portfolio advice is for.
+  portfolio: [
+    { kind: 'project', title: 'Battery pack thermal management redesign' },
+    { kind: 'project', title: 'Formula Student suspension upright' },
+    { kind: 'course', title: 'Computational Fluid Dynamics' },
+  ],
   education: [{ school: 'Loughborough University', degree: 'MEng Mechanical Engineering' }],
   employerCount: 1,
   linkedEmployers: 1,

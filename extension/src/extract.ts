@@ -1,4 +1,4 @@
-import type { Profile, Experience } from '../../packages/engine/src/types.ts';
+import type { Profile, Experience, Evidence } from '../../packages/engine/src/types.ts';
 
 /**
  * DOM extraction for linkedin.com/in/*.
@@ -51,6 +51,24 @@ export const LAZY_CARDS = [
 export function missingCards(): string[] {
   return LAZY_CARDS.filter((name) => card(name) === null);
 }
+
+/**
+ * Cards holding evidence that is not a job.
+ *
+ * Matched on a substring rather than a suffix. The exact componentkey names for
+ * these are unverified — they are the cards a profile only renders when it has
+ * them, so none appeared on the profile the SDUI selectors were read from. A
+ * contains-match on a distinctive token survives whichever `TopLevelSection`
+ * suffix LinkedIn settled on, and the legacy anchor below covers the rest.
+ */
+const EVIDENCE_CARDS: { kind: Evidence['kind']; token: string; legacyId: string }[] = [
+  { kind: 'project', token: 'Project', legacyId: 'projects' },
+  { kind: 'publication', token: 'Publication', legacyId: 'publications' },
+  { kind: 'certification', token: 'Licenses', legacyId: 'licenses_and_certifications' },
+  { kind: 'volunteer', token: 'Volunteer', legacyId: 'volunteering_experience' },
+  { kind: 'honor', token: 'Honor', legacyId: 'honors_and_awards' },
+  { kind: 'course', token: 'Course', legacyId: 'courses' },
+];
 
 /** Pre-SDUI anchors, for profiles not yet migrated. */
 const LEGACY_ANCHOR: Partial<Record<keyof typeof CARDS, string>> = {
@@ -206,6 +224,33 @@ function relativeToDays(token: string): number | null {
     case 'yr': return n * 365;
     default: return null;
   }
+}
+
+/**
+ * Entries inside one evidence card.
+ *
+ * The same two shapes as everywhere else on this page: sometimes list items,
+ * sometimes bare divs. Anything long enough to be prose is taken as the
+ * description, everything shorter as the title — the cards carry no stable class
+ * names, so position is the only thing left to read.
+ */
+function evidenceItems(root: HTMLElement): { title?: string; description?: string }[] {
+  const heading = T(root.querySelector('h2'));
+  const containers = [...root.querySelectorAll<HTMLElement>('li')];
+  if (!containers.length) {
+    // No <li> — the Skills-card shape. Treat each anchor as one entry.
+    return [...root.querySelectorAll<HTMLElement>('a')]
+      .map((a) => T(a))
+      .filter((t) => t && t !== heading && t.length < 120 && !/^Show all/i.test(t))
+      .filter((t, i, arr) => arr.indexOf(t) === i)
+      .map((title) => ({ title }));
+  }
+
+  return containers.map((li) => {
+    const pieces = textPieces(li).filter((t) => t !== heading && !/^Show all/i.test(t));
+    const description = pieces.find((t) => t.length >= MIN_DESCRIPTION_CHARS && t !== pieces[0]);
+    return { title: pieces[0], description };
+  });
 }
 
 function looksLikeBanner(img: HTMLImageElement): boolean {
@@ -375,6 +420,24 @@ export function extractProfile(): Profile {
       postsLast30d: days.filter((d) => d <= 30).length,
     };
     observed.push('activity');
+  }
+
+  // ---------------------------------------------------------- portfolio
+  // Only claimed when the Experience card was read. That is the proof we got a
+  // proper look at the page rather than the top card of a stranger's profile —
+  // and it matters, because these cards render only when the person HAS them, so
+  // "absent" is a real answer here and must not be given on a partial read.
+  if (experienceCard) {
+    const evidence: Evidence[] = [];
+    for (const { kind, token, legacyId } of EVIDENCE_CARDS) {
+      const root =
+        document.querySelector<HTMLElement>(`div[componentkey*="${token}"]`) ??
+        (document.getElementById(legacyId)?.closest('section') as HTMLElement | null);
+      if (!root) continue;
+      for (const item of evidenceItems(root)) evidence.push({ kind, ...item });
+    }
+    profile.portfolio = evidence;
+    observed.push('portfolio');
   }
 
   // ------------------------------------------------------------- vanity URL

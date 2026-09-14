@@ -152,10 +152,18 @@ export function buildProfileHtml(o: FixtureOptions = {}): string {
     <a href="/details/skills/">Show all</a>
   `) : '';
 
+  // The Featured item's own componentkey is a serialised urn whose text contains
+  // "itemProfileProjectUrn", "itemProfileCourseUrn", "itemProfileHonorUrn" and
+  // "itemProfileCertificationUrn". Reproduced verbatim in shape because a
+  // substring selector for the evidence cards matches THIS first — Featured
+  // renders above Projects — and silently reads pinned posts as a portfolio.
+  const featuredItemKey =
+    'FeFeaturedItemUrn(itemArticleUrn=null, itemProfileCertificationUrn=null, ' +
+    'itemProfileCourseUrn=null, itemProfileHonorUrn=null, itemProfileProjectUrn=null)';
   const featured = withFeatured ? card('Featured', `
     <h2>Featured</h2>
     <ul>
-      <li><a href="/feed/update/1"><img src="https://media.licdn.com/x/thumb"><span>Cutting a release train from 11 hours to 22 minutes</span></a></li>
+      <li><div componentkey="${featuredItemKey}"><a href="/feed/update/1"><img src="https://media.licdn.com/x/thumb"><span>Cutting a release train from 11 hours to 22 minutes</span></a></div></li>
     </ul>
   `) : '';
 
@@ -174,7 +182,7 @@ export function buildProfileHtml(o: FixtureOptions = {}): string {
   // Projects. The componentkey name here is a guess — LinkedIn only renders this
   // card for people who have one, so it was not on the profile the other selectors
   // were read from. Matched by substring for exactly that reason.
-  const projects = withProjects ? card('ProjectsTopLevelSection', `
+  const projects = withProjects ? card('Projects', `
     <h2>Projects</h2>
     <ul>
       <li><p><span>Realtime ingest pipeline</span></p>

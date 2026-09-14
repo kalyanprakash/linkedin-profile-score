@@ -225,3 +225,45 @@ test('missingCards is empty once every card is present', async () => {
   const { missingCards } = await load({});
   assert.deepEqual(missingCards(), [], 'a fully rendered profile has nothing left to wait for');
 });
+
+// ------------------------------------------------------- evidence cards
+// Card names read from a live profile that has them, not guessed. The first
+// draft guessed `Licenses` for what LinkedIn calls `CertificationTopLevel`.
+
+test('projects are read from the Projects card', async () => {
+  const p = await extract();
+  const projects = (p.portfolio ?? []).filter((i) => i.kind === 'project');
+  assert.equal(projects.length, 2, 'both project entries should be read');
+  assert.ok(
+    projects.some((i) => /realtime ingest/i.test(i.title ?? '')),
+    `expected the project titles, got ${JSON.stringify(projects)}`,
+  );
+  assert.ok(
+    projects.some((i) => (i.description ?? '').length > 30),
+    'the described project must keep its description',
+  );
+});
+
+test('a Featured post is never counted as a project', async () => {
+  // The collision this exists for: Featured items carry a componentkey whose
+  // serialised urn contains "itemProfileProjectUrn". A substring selector matches
+  // that before the real Projects card, because Featured renders above it — so
+  // every profile with pinned posts would report them as its portfolio.
+  const p = await extract();
+  const titles = (p.portfolio ?? []).map((i) => i.title ?? '');
+  assert.ok(
+    !titles.some((t) => /release train/i.test(t)),
+    `a Featured post leaked into the portfolio: ${JSON.stringify(titles)}`,
+  );
+  // And it is still read as Featured.
+  assert.equal((p.featured ?? []).length, 1);
+});
+
+test('portfolio is claimed only when the profile was properly read', async () => {
+  const partial = await extract({ withExperience: false, withProjects: false });
+  assert.ok(!partial.observed!.includes('portfolio'),
+    'without the Experience card we cannot claim the person has no projects');
+  const full = await extract({ withProjects: false });
+  assert.ok(full.observed!.includes('portfolio'), 'a full read knows the section is absent');
+  assert.deepEqual(full.portfolio, [], 'absent after a full read is a real empty, not unknown');
+});

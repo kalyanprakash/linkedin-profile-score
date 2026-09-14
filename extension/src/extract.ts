@@ -55,20 +55,43 @@ export function missingCards(): string[] {
 /**
  * Cards holding evidence that is not a job.
  *
- * Matched on a substring rather than a suffix. The exact componentkey names for
- * these are unverified — they are the cards a profile only renders when it has
- * them, so none appeared on the profile the SDUI selectors were read from. A
- * contains-match on a distinctive token survives whichever `TopLevelSection`
- * suffix LinkedIn settled on, and the legacy anchor below covers the rest.
+ * Names read from a live profile that has them (2026-09-14), not guessed. The
+ * first draft guessed, and got `Licenses` for what LinkedIn actually calls
+ * `CertificationTopLevel` — that card would never have been read.
+ *
+ * Matched on the exact suffix, never a substring, and that matters more than it
+ * looks. Featured items carry a componentkey holding a serialised urn whose text
+ * includes `itemProfileProjectUrn=null`, `itemProfileCourseUrn`,
+ * `itemProfileHonorUrn` and `itemProfileCertificationUrn`. A contains-match on
+ * "Project" hits those first, because Featured renders above Projects — so every
+ * profile with pinned posts would have had them counted as its project portfolio.
+ * Every real card ends with its name and begins with CARD_PREFIX; requiring both
+ * removes the whole class of collision.
+ *
+ * Test scores are deliberately not here. A GRE result is not evidence of work,
+ * and a rubric that rewards listing one is telling people to do the wrong thing.
  */
-const EVIDENCE_CARDS: { kind: Evidence['kind']; token: string; legacyId: string }[] = [
-  { kind: 'project', token: 'Project', legacyId: 'projects' },
-  { kind: 'publication', token: 'Publication', legacyId: 'publications' },
-  { kind: 'certification', token: 'Licenses', legacyId: 'licenses_and_certifications' },
-  { kind: 'volunteer', token: 'Volunteer', legacyId: 'volunteering_experience' },
-  { kind: 'honor', token: 'Honor', legacyId: 'honors_and_awards' },
-  { kind: 'course', token: 'Course', legacyId: 'courses' },
+const CARD_PREFIX = 'com.linkedin.sdui.profile.card.ref';
+
+const EVIDENCE_CARDS: { kind: Evidence['kind']; suffix: string; legacyId: string }[] = [
+  { kind: 'project', suffix: 'Projects', legacyId: 'projects' },
+  { kind: 'publication', suffix: 'PublicationTopLevelSection', legacyId: 'publications' },
+  { kind: 'publication', suffix: 'Patents', legacyId: 'patents' },
+  { kind: 'certification', suffix: 'CertificationTopLevel', legacyId: 'licenses_and_certifications' },
+  { kind: 'volunteer', suffix: 'VolunteerExperienceTopLevel', legacyId: 'volunteering_experience' },
+  { kind: 'honor', suffix: 'HonorsTopLevel', legacyId: 'honors_and_awards' },
+  { kind: 'course', suffix: 'CourseTopLevelSection', legacyId: 'courses' },
 ];
+
+/** A profile card by exact name, rejecting anything that is not a top-level card. */
+function evidenceCard(suffix: string, legacyId: string): HTMLElement | null {
+  const sdui = document.querySelector<HTMLElement>(
+    `div[componentkey^="${CARD_PREFIX}"][componentkey$="${suffix}"]`,
+  );
+  if (sdui) return sdui;
+  const legacy = document.getElementById(legacyId)?.closest('section');
+  return legacy instanceof HTMLElement ? legacy : null;
+}
 
 /** Pre-SDUI anchors, for profiles not yet migrated. */
 const LEGACY_ANCHOR: Partial<Record<keyof typeof CARDS, string>> = {
@@ -429,10 +452,8 @@ export function extractProfile(): Profile {
   // "absent" is a real answer here and must not be given on a partial read.
   if (experienceCard) {
     const evidence: Evidence[] = [];
-    for (const { kind, token, legacyId } of EVIDENCE_CARDS) {
-      const root =
-        document.querySelector<HTMLElement>(`div[componentkey*="${token}"]`) ??
-        (document.getElementById(legacyId)?.closest('section') as HTMLElement | null);
+    for (const { kind, suffix, legacyId } of EVIDENCE_CARDS) {
+      const root = evidenceCard(suffix, legacyId);
       if (!root) continue;
       for (const item of evidenceItems(root)) evidence.push({ kind, ...item });
     }

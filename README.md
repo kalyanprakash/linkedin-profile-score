@@ -14,7 +14,7 @@ and stays free by never needing a server.
 **Partial credit.** Every check returns a ratio in `0..1`, never pass/fail. A
 headline using 75 of its 220 characters scores 0.75 on that check, not zero.
 
-**The goal changes the weights.** Thirty checks, re-weighted across five goals, each
+**The goal changes the weights.** Thirty-two checks, re-weighted across five goals, each
 column summing to 100. Experience is 32% of a job seeker's score and 17% of an
 audience-builder's. Posting is 2% for a job hunt and 12% for building an audience.
 That difference is most of why a one-size rubric misjudges people.
@@ -30,6 +30,18 @@ score cannot read as "solid" however good the rest is. Caps are graded, engage o
 on genuine absence, are always explained, and always name the fix that lifts them —
 and are dropped below a three-point bind, because "capped at 58, would otherwise be
 59" is a red warning about nothing.
+
+**The rubric reads the career the profile describes.** Career length, taken from the
+union of the role date ranges, sets what is expected rather than what is earned. A
+graduate is not asked for three recommendations; sixteen years with no role
+described anywhere is capped, because a reader cannot assess it. Measured before it
+was built: the rubric was already mostly stage-neutral, since every rule is a ratio
+over what exists — "0 of 1 roles described", never "you only have 1 role".
+
+**Evidence that is not a job counts.** Projects, publications, patents,
+certifications, volunteering and coursework are read and scored. Without them a
+graduate had no way to score well by doing exactly the right thing, which was a
+defect in the rubric rather than a fact about them.
 
 **Some things are reported, never priced.** Where the evidence is thin or the right
 answer genuinely depends on the person — the #OpenToWork signal is the worked
@@ -71,7 +83,9 @@ packages/engine/          pure scoring — no DOM, no network, no browser APIs
   src/types.ts            Profile shape, rule contract, report shape
   src/text.ts             deterministic text primitives
   src/personas.ts         per-goal weights and blocking gaps
-  src/rules/              headline · about · experience · signals · profile
+  src/rules/              headline · about · experience · signals · profile · portfolio
+  src/bands.ts            what a score means to whoever reads the profile
+  src/tenure.ts           career length, and what it changes
   src/observations.ts     reported, never scored
   src/actions.ts          what to do next, with measured deltas
   src/score.ts            runner, normalisation, uncertainty range, caps
@@ -88,7 +102,7 @@ version unchanged.
 
 ```bash
 npm install
-npm test                              # 69 tests: engine, extractor, panel
+npm test                              # 87 tests: engine, extractor, panel
 npm run demo -- matrix                # every fixture against every goal
 npm run demo -- live job_search       # a full report
 npm run build:ext                     # → extension/dist and build/firefox
@@ -125,6 +139,11 @@ point *below* the generic one it replaced.
 See [CONTRIBUTING.md](CONTRIBUTING.md). The most valuable contribution is fixing a
 selector after LinkedIn ships a DOM change; everything that knows about their markup
 lives in one file, and the fixture encodes every trap found so far.
+
+## Privacy
+
+[PRIVACY.md](PRIVACY.md). Nothing is collected, nothing is transmitted, and the
+build fails if that stops being true.
 
 ## Licence
 

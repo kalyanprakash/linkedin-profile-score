@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Profile Score for LinkedIn",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Scores your LinkedIn profile for your actual goal. Runs entirely in your browser. Not affiliated with LinkedIn Corporation.",
   "permissions": [
     "storage"

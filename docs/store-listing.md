@@ -47,10 +47,17 @@ Profile Score fixes both, and it is free because it never needs a server.
 
 **It scores for what you are actually trying to do.**
 
-Thirty checks, re-weighted across five goals. Experience is 32% of a job seeker's
+Thirty-two checks, re-weighted across five goals. Experience is 32% of a job seeker's
 score and 17% of an audience builder's. Posting is 2% for a job hunt and 12% for
 building a following. Pick your goal from the dropdown and the whole score changes,
 because the same profile genuinely is better or worse depending on what it is for.
+
+**It reads the career you actually describe.**
+
+Career length comes from your own role dates and sets what is expected, not what is
+earned. A graduate is not marked down for having one job, and their projects and
+coursework are scored as the evidence they are. Sixteen years with no role described
+anywhere is treated as what it is: a career a reader cannot assess.
 
 **Partial credit, not pass/fail.**
 
@@ -116,6 +123,9 @@ Chrome asks for these individually. Keep the answers narrow and literal.
 > None. All code is bundled in the package. The extension loads no scripts and
 > makes no network requests. A build check fails if `fetch`, `XMLHttpRequest`,
 > `WebSocket` or `sendBeacon` ever appear in the bundle.
+
+**Privacy policy URL**
+> https://github.com/kalyanprakash/linkedin-profile-score/blob/main/PRIVACY.md
 
 **Data collection disclosure**
 > Select "does not collect user data" for every category. This is accurate: no data

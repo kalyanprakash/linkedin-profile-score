@@ -284,6 +284,20 @@ function render(
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /**
+ * A long timer that must not hold a process open.
+ *
+ * Both MutationObservers give up after a while, which is right in a browser and
+ * costly under test: these are Node timers in jsdom, and the runner waits for them
+ * before exiting, so the suite sat idle for sixty-five seconds after the last
+ * assertion. `unref` is a no-op in a browser — `setTimeout` returns a number there,
+ * with no such method — and in Node it lets the process exit on time.
+ */
+function stopWatching(fn: () => void, ms: number): void {
+  const t = setTimeout(fn, ms) as unknown as { unref?: () => void };
+  t.unref?.();
+}
+
+/**
  * Force the lazily-hydrated cards into the DOM before scoring.
  *
  * Below the fold, LinkedIn does not render a card until it is scrolled near — so a
@@ -401,7 +415,7 @@ async function run(): Promise<void> {
     }, 600) as unknown as number;
   });
   obs.observe(document.body, { childList: true, subtree: true });
-  setTimeout(() => obs.disconnect(), 60000);
+  stopWatching(() => obs.disconnect(), 60000);
 }
 
 // LinkedIn is a single-page app and renders the profile after navigation, so wait
@@ -418,7 +432,7 @@ function whenReady(cb: () => void): void {
     }
   });
   obs.observe(document.documentElement, { childList: true, subtree: true });
-  setTimeout(() => obs.disconnect(), 20000);
+  stopWatching(() => obs.disconnect(), 20000);
 }
 
 whenReady(() => void run());

@@ -10,7 +10,8 @@
     "demo": "node --experimental-strip-types packages/engine/test/demo.ts",
     "build:ext": "cd extension && node build.mjs",
     "watch": "cd extension && node build.mjs --watch",
-    "report": "node --experimental-strip-types packages/engine/test/demo.ts"
+    "report": "node --experimental-strip-types packages/engine/test/demo.ts",
+    "package": "node scripts/package.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.287",

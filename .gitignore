@@ -1,3 +1,5 @@
 node_modules/
 extension/dist/
 build/
+# Store packages are build output — rebuilt by `npm run package`, never committed.
+dist-store/

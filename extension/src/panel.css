@@ -31,6 +31,14 @@
 /* What the score means for whoever reads the profile. Sits directly under the
    number because the number on its own is an abstraction. */
 .lps-standing { margin-top: 12px; }
+/* Progress, when there is any. Deliberately the first thing in the block: someone
+   who came back after doing the work should see that it worked before they see
+   what is still wrong. */
+.lps-moved { margin: 0 0 8px; font-size: 13px; }
+.lps-moved-delta { font-weight: 700; font-variant-numeric: tabular-nums; margin-right: 2px; }
+.lps-moved-up { color: #0d6b60; }
+.lps-moved-down { color: #b54708; }
+
 .lps-reads { margin: 0; font-size: 13.5px; color: #384347; }
 .lps-stage { margin: 5px 0 0; font-size: 12.5px; color: #66757a; }
 .lps-next { margin: 6px 0 0; font-size: 12.5px; color: #66757a; }
@@ -184,6 +192,8 @@
   .lps-loading-note { color: #9aa9a8; }
   .lps-reads { color: #c8d3d2; }
   .lps-stage, .lps-next { color: #8b9b9d; }
+  .lps-moved-up { color: #4ecab8; }
+  .lps-moved-down { color: #fdb022; }
   .lps-next strong { color: #e4eae9; }
 
   .lps-cap { background: #2b1412; border-color: #7a271a; }

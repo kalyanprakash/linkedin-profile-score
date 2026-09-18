@@ -22,9 +22,20 @@ loudly, in public, on a repository you can read.
 
 ## What is stored
 
-One value, in your browser's local extension storage: which goal you last selected
-in the dropdown, so the panel reopens on the same one. It never leaves your device
-and is removed when you uninstall the extension.
+Two things, both in your browser's local extension storage, both removed when you
+uninstall the extension, neither ever transmitted:
+
+1. **Which goal you last selected** in the dropdown, so the panel reopens on it.
+2. **Your own score history** — a short list of `{score, date, rubric version}` per
+   goal, so the panel can show you "+12 since three weeks ago" when you come back
+   after making changes. At most twenty readings per goal. It holds numbers and
+   dates only: no profile text, no recommendations, no identifiers.
+
+The second exists because the useful question — does anyone actually act on the
+advice and come back? — is normally answered with analytics. Answering it that way
+would break the promise above, so it is answered by showing the person their own
+progress instead, on their own machine, where it is more use to them than it would
+ever be to us.
 
 ## What is read
 

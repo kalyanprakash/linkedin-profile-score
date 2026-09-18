@@ -7,7 +7,7 @@ import { buildProfileHtml } from './fixtures/dom.ts';
  * Panel smoke tests. The content script reads globals and appends to document.body,
  * so each case installs a jsdom window and imports the module fresh.
  */
-async function mountPanel(opts = {}) {
+async function mountPanel(opts = {}, stubStorage?: (g: Record<string, unknown>) => void) {
   const dom = new JSDOM(`<!doctype html><html><body>${buildProfileHtml(opts)}</body></html>`, {
     url: 'https://www.linkedin.com/in/dana-okonkwo/',
   });
@@ -18,7 +18,8 @@ async function mountPanel(opts = {}) {
   g.HTMLElement = dom.window.HTMLElement;
   g.HTMLImageElement = dom.window.HTMLImageElement;
   g.MutationObserver = dom.window.MutationObserver;
-  g.chrome = undefined; // storage unavailable; the panel must still work
+  g.chrome = undefined; // storage unavailable by default; the panel must still work
+  stubStorage?.(g);
   // NB: do not alias global setTimeout to jsdom's — jsdom calls back into the
   // global one and the two recurse until the stack blows.
 
@@ -86,5 +87,49 @@ test('a fully read profile shows no uncertainty note', async () => {
   const dom = await mountPanel();
   assert.equal(dom.window.document.querySelector('.lps-note'), null,
     'nothing was unread, so there is no uncertainty to report');
+  dom.window.close();
+});
+
+test('the panel shows progress when there is a history to compare against', async () => {
+  const { RUBRIC_VERSION } = await import('../../packages/engine/src/version.ts');
+  const stored: Record<string, string> = {
+    'lps.persona': 'job_search',
+    'lps.history': JSON.stringify({
+      job_search: [{ s: 40, d: '2026-09-01', v: RUBRIC_VERSION }],
+    }),
+  };
+  const dom = await mountPanel({}, (g) => {
+    g.chrome = {
+      storage: {
+        local: {
+          get: (key: string) => Promise.resolve({ [key]: stored[key] }),
+          set: (items: Record<string, string>) => { Object.assign(stored, items); return Promise.resolve(); },
+        },
+      },
+    };
+  });
+  const moved = dom.window.document.querySelector('.lps-moved');
+  assert.ok(moved, 'a comparable earlier reading must produce a progress line');
+  assert.match(moved!.textContent ?? '', /you were 40/i);
+  dom.window.close();
+});
+
+test('a reading under a different rubric produces no progress line', async () => {
+  // The scoring changed, not the profile. Saying "-8" here would be a false claim
+  // about the person's own work.
+  const stored: Record<string, string> = {
+    'lps.history': JSON.stringify({ job_search: [{ s: 90, d: '2026-09-01', v: 'some-older-rubric' }] }),
+  };
+  const dom = await mountPanel({}, (g) => {
+    g.chrome = {
+      storage: {
+        local: {
+          get: (key: string) => Promise.resolve({ [key]: stored[key] }),
+          set: () => Promise.resolve(),
+        },
+      },
+    };
+  });
+  assert.equal(dom.window.document.querySelector('.lps-moved'), null);
   dom.window.close();
 });

@@ -47,6 +47,14 @@ defect in the rubric rather than a fact about them.
 answer genuinely depends on the person — the #OpenToWork signal is the worked
 example — the honest output is the fact and the trade-off, worth zero points.
 
+**Your own progress, kept on your own machine.** The panel remembers what you
+scored and shows the movement when you return. Every reading is tagged with the
+rubric version that produced it and only compared within one version — this profile
+went 57 → 49 in an afternoon when a lazy-loading bug was fixed, and reporting that
+to its owner as eight points lost would have been a lie the tool told itself first.
+It is also the honest answer to "does anyone act on this?": a question normally
+answered with analytics, answered here by showing the person instead.
+
 **One action, not a to-do list.** The panel leads with a single recommendation,
 chosen by class (blocking beats polish) and then by a *measured* delta: the fix is
 applied to a copy of your profile and the whole thing re-scored. No effort
@@ -92,6 +100,7 @@ packages/engine/          pure scoring — no DOM, no network, no browser APIs
 extension/                Chrome + Firefox MV3
   src/extract.ts          the only file that knows LinkedIn's markup
   src/storage.ts          cross-browser storage, best-effort
+  src/history.ts          local score history — never leaves the device
   src/content.ts          the panel
 ```
 
@@ -102,7 +111,7 @@ version unchanged.
 
 ```bash
 npm install
-npm test                              # 87 tests: engine, extractor, panel
+npm test                              # 99 tests: engine, extractor, panel, history
 npm run demo -- matrix                # every fixture against every goal
 npm run demo -- live job_search       # a full report
 npm run build:ext                     # → extension/dist and build/firefox

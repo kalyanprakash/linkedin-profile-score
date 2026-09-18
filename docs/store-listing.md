@@ -71,6 +71,13 @@ If a section has not loaded, the check is removed from the scoring rather than
 counted as a failure, and you are shown a range instead of a false precision. You
 will never be told a section is empty when the truth is that it was not readable.
 
+**It shows you that it worked.**
+
+Come back after making a change and the panel opens with "+12 since three weeks
+ago". Your scores are remembered on your own machine and nowhere else — and because
+they are tagged with the rubric version that produced them, an update to the scoring
+never shows up as your profile getting worse.
+
 **It leads with one thing, not twenty.**
 
 A list of twenty findings is a to-do list nobody starts. Profile Score shows the
@@ -110,9 +117,11 @@ Not affiliated with, endorsed by, or connected to LinkedIn Corporation.
 Chrome asks for these individually. Keep the answers narrow and literal.
 
 **`storage`**
-> Stores one value: which goal the user selected in the dropdown, so the panel
-> opens on the same goal next time. Nothing else is written, and nothing is sent
-> anywhere.
+> Stores two things locally, both removed on uninstall and neither transmitted:
+> the goal the user selected in the dropdown, so the panel reopens on it; and a
+> short per-goal list of that user's own past scores as {number, date}, so the
+> panel can show them their progress when they return. No profile content, no
+> identifiers, and no network access of any kind.
 
 **`host_permissions: https://www.linkedin.com/in/*`**
 > The extension reads the profile page it runs on in order to score it. Access is
@@ -129,8 +138,9 @@ Chrome asks for these individually. Keep the answers narrow and literal.
 
 **Data collection disclosure**
 > Select "does not collect user data" for every category. This is accurate: no data
-> is transmitted, stored remotely, or shared. The only persisted value is the
-> selected goal, in local browser storage.
+> is transmitted, stored remotely, or shared. The only persisted values are the
+> selected goal and the user's own past scores, both in local browser storage on
+> their own device.
 
 ---
 
@@ -148,8 +158,9 @@ AMO asks for a shorter summary and reviewer notes.
 > Source: github.com/kalyanprakash/linkedin-profile-score (Apache-2.0).
 > Build: `npm install && npm run build:ext`, which emits build/firefox.
 > No minification, no remote code, no network requests, no background script.
-> The only permission beyond host access is `storage`, used for a single
-> preference. The content script reads the DOM of the profile page it runs on,
+> The only permission beyond host access is `storage`, used for two local values:
+> the selected goal, and a short list of the user's own past scores so the panel
+> can show them their progress. Neither is transmitted. The content script reads the DOM of the profile page it runs on,
 > scores it in memory, and renders a panel. Nothing is transmitted.
 
 ---

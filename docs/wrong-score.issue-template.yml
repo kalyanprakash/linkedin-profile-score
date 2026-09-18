@@ -1,0 +1,90 @@
+name: The score got my profile wrong
+description: A profile the rubric misjudges — the most useful thing you can report.
+title: "Mis-scored: "
+labels: ["calibration"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the highest-value issue you can file here.
+
+        There is no telemetry in this extension and there never will be, so nothing
+        tells us which kinds of profile the rubric gets wrong. Reports are the only
+        signal. A good one usually becomes a permanent test: profile shapes that
+        expose a bad rule get added to the calibration corpus as an archetype, and
+        from then on any change that would re-break your case fails the build.
+
+        **Please do not paste your profile, a link to it, or anyone else's.** We
+        need the *shape*, never the content. Everything below is deliberately
+        written so you can answer it without identifying yourself.
+  - type: textarea
+    id: shape
+    attributes:
+      label: What shape is the career?
+      description: >
+        Enough to rebuild something like it from scratch. Roughly how many years,
+        how many roles, whether they overlap, whether it changed industry, whether
+        the employers have LinkedIn pages, anything unusual about the path.
+      placeholder: |
+        ~7 years. Nine short contracts, several overlapping, two of them at companies
+        with no LinkedIn page. Moved from teaching into data analysis three years in.
+    validations:
+      required: true
+  - type: dropdown
+    id: goal
+    attributes:
+      label: Which goal was selected?
+      options:
+        - Job search
+        - Passive — be findable
+        - Inbound / lead generation
+        - Audience building
+        - Hiring for my team
+    validations:
+      required: true
+  - type: input
+    id: score
+    attributes:
+      label: What did it score, and which band?
+      placeholder: "41 — Bare bones"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should it have said, and why?
+      description: >
+        The important half. "Too low" on its own cannot be acted on — what did the
+        rubric miss, or what is it treating as a gap that is not one?
+      placeholder: >
+        It read nine contracts as nine undescribed jobs. Six of them were two-month
+        engagements where a paragraph each would be noise, and the two long ones are
+        written up properly.
+    validations:
+      required: true
+  - type: textarea
+    id: leading
+    attributes:
+      label: What did it tell you to do first?
+      description: The "Do this first" block, and whether that was the right advice.
+    validations:
+      required: false
+  - type: textarea
+    id: checks
+    attributes:
+      label: Any individual checks that were plainly wrong
+      description: >
+        Open "All checks" and copy any row whose observation does not match your
+        profile — a section read as empty when it is not, a count that is off, a
+        date range misread.
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have not included my profile URL, my profile text, or anyone else's.
+          required: true
+        - label: I scrolled the whole profile and hit Rescan, and the panel showed no "could not read" note.
+          required: false

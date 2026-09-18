@@ -1,5 +1,6 @@
 import { extractProfile, missingCards } from './extract.ts';
 import { readKey, writeKey } from './storage.ts';
+import { type History, type Progress, progress, record, ago, readHistory, writeHistory } from './history.ts';
 import { scoreProfile, scoreAllPersonas } from '../../packages/engine/src/score.ts';
 import { advise, type Recommendation } from '../../packages/engine/src/actions.ts';
 import { PERSONAS, DEFAULT_PERSONA } from '../../packages/engine/src/personas.ts';
@@ -107,6 +108,7 @@ function render(
   persona: PersonaId,
   onPersona: (p: PersonaId) => void,
   onRescan: () => void,
+  moved?: Progress,
 ): HTMLElement {
   const panel = el('div', 'lps-panel');
   panel.id = PANEL_ID;
@@ -140,6 +142,21 @@ function render(
   // says what a person on the other end of the profile can actually do with it,
   // which is the only reason the score exists.
   const standing = el('div', 'lps-standing');
+
+  // Progress first, when there is any. Someone who came back after doing the work
+  // should see that it worked before they see what is still wrong.
+  if (moved) {
+    const up = moved.delta > 0;
+    const p = el('div', `lps-moved lps-moved-${up ? 'up' : 'down'}`);
+    p.append(el('span', 'lps-moved-delta', `${up ? '+' : ''}${moved.delta}`));
+    p.append(document.createTextNode(
+      up
+        ? ` since ${ago(moved.since)} — you were ${moved.from}.`
+        : ` since ${ago(moved.since)}. You were ${moved.from}; something on the profile changed.`,
+    ));
+    standing.append(p);
+  }
+
   standing.append(el('p', 'lps-reads', report.bandReads));
   // Says what the score was compared against, so a graduate is not left wondering
   // why they are not being asked for three recommendations and a veteran can see
@@ -327,6 +344,10 @@ async function writePersona(p: PersonaId): Promise<void> {
 
 async function run(): Promise<void> {
   let persona = await readPersona();
+  // Read once. Every later comparison is against this snapshot, so the reading
+  // taken moments ago does not become the thing the current score is measured
+  // against — which would show "+0" forever.
+  const past: History = await readHistory();
 
   // Mount something immediately — hydration takes a second or two and a silent
   // page looks like a broken extension.
@@ -339,7 +360,12 @@ async function run(): Promise<void> {
     const profile = extractProfile();
     const scrollTop = document.getElementById(PANEL_ID)?.scrollTop ?? 0;
     document.getElementById(PANEL_ID)?.remove();
-    const panel = render(scoreProfile(profile, p), profile, p, draw, () => void rescan());
+    const report = scoreProfile(profile, p);
+    // Recorded against the history as it was when the page loaded, then written
+    // back. Best-effort throughout: no storage means no progress line and nothing
+    // else changes.
+    void writeHistory(record(past, p, report.score));
+    const panel = render(report, profile, p, draw, () => void rescan(), progress(past, p, report.score));
     document.body.append(panel);
     panel.scrollTop = scrollTop;
     return profile;

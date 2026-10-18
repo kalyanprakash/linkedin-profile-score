@@ -765,3 +765,18 @@ test('portfolio descriptions are scored only when they were read', () => {
   const read = scoreProfile({ ...titlesOnly, observed: ['portfolio', 'portfolioDescriptions'] }, 'job_search');
   assert.ok(read.rules.some((x) => x.id === 'portfolio.described'));
 });
+
+test('keyword reinforcement abstains when no prose section was read', () => {
+  // Terms listed with no About and no Experience READ is not "terms never written
+  // about" — the writing may exist in a section nobody looked at.
+  const p: Profile = {
+    headline: 'Data Engineer',
+    skills: ['Airflow', 'dbt', 'Snowflake', 'Python', 'SQL'],
+    observed: ['headline', 'skills'],
+  };
+  const r = scoreProfile(p, 'job_search');
+  assert.ok(r.abstained.some((a) => a.id === 'keywords.reinforcement'));
+  // Read and genuinely empty is still a zero.
+  const read = scoreProfile({ ...p, about: '', observed: ['headline', 'skills', 'about'] }, 'job_search');
+  assert.equal(read.rules.find((x) => x.id === 'keywords.reinforcement')!.ratio, 0);
+});

@@ -173,3 +173,8 @@ test('portfolio descriptions are observed only when projects were pasted, since 
   assert.ok(!fromPaste({ certifications: 'PMP\nCISSP\nCCNA' }).observed!.includes('portfolioDescriptions'));
   assert.ok(fromPaste({ certifications: '', projects: 'Bus tracker\nBuilt a live bus-arrival app.' }).observed!.includes('portfolioDescriptions'));
 });
+
+test('a paste of only headline and skills does not score keyword reinforcement as zero', () => {
+  const p = fromPaste({ headline: 'Data Engineer', skills: 'Airflow, dbt, Snowflake, Python, SQL' });
+  assert.ok(scoreProfile(p, 'job_search').abstained.some((a) => a.id === 'keywords.reinforcement'));
+});

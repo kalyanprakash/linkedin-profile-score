@@ -24,11 +24,18 @@ jobs:
       # here rather than trusted. If any network primitive ever reaches the bundle
       # the build fails, and the claim in the README stops being true loudly
       # instead of quietly.
-      - name: Assert the bundle makes no network calls
-        run: |
-          if grep -nE '\bfetch\(|XMLHttpRequest|WebSocket|sendBeacon|navigator\.connection' extension/dist/content.js; then
-            echo "::error::Network primitive found in the extension bundle."
-            echo "Profile data must never leave the browser. See README > Guarantees."
-            exit 1
-          fi
-          echo "OK — no fetch, XMLHttpRequest, WebSocket or sendBeacon in the bundle."
+      #
+      # One pattern for every bundle, in scripts/check-network.mjs, shared with the
+      # store packager — so the extension and the web build cannot drift into
+      # checking for different things.
+      - name: Assert the extension bundle makes no network calls
+        run: node scripts/check-network.mjs extension/dist/content.js
+
+      # The web bundle runs on someone else's site, next to code this repo does not
+      # control. The claim it can make is narrower — this file never sends the
+      # profile anywhere — and it is held to exactly the same check.
+      - name: Build web bundle
+        run: npm run build:web
+
+      - name: Assert the web bundle makes no network calls
+        run: npm run check:web

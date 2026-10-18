@@ -1,0 +1,319 @@
+import type { Evidence, Experience, Profile } from '../../packages/engine/src/types.ts';
+import {
+  DATE_RANGE, DEGREE_WORDS, DURATION_ONLY, LOCATION_ISH, META_LINE,
+  collapse, isCurrent, looksLikeProse,
+} from './lines.ts';
+
+/**
+ * Paste mode: the person copies sections of their own profile into a form.
+ *
+ * ## What counts as observed
+ *
+ * A section is observed exactly when its key is present with a string value —
+ * including an empty string — and unobserved when it is missing or undefined.
+ *
+ * The form is the only witness to intent. A field the person left blank on
+ * purpose ("I have no About") is a real answer, and scoring it is what they
+ * asked for. A field the page never sent is not an answer at all, and must not be
+ * read as "you have none" — that is the false zero this project exists to avoid.
+ * So the page decides by what it sends: include the key for a field the person
+ * was shown, omit it for one they were not. `null` is treated as omitted.
+ *
+ * Certifications and projects both feed `portfolio`; it is observed when either
+ * key is present, since the person was then asked about their evidence and
+ * answered.
+ *
+ * Paste never observes the things it cannot see: photo, banner, featured,
+ * recommendations, activity, open-to-work, custom URL, contact info, location,
+ * company links. Those abstain and widen the range.
+ */
+export interface PasteSections {
+  name?: string;
+  headline?: string;
+  about?: string;
+  experience?: string;
+  education?: string;
+  skills?: string;
+  certifications?: string;
+  projects?: string;
+}
+
+function toLines(text: string): string[] {
+  return text.replace(/\r\n?/g, '\n').split('\n').map((l) => collapse(l));
+}
+
+/** Pasted copy often starts with the section's own heading. */
+function dropHeading(lines: string[], heading: RegExp): string[] {
+  const first = lines.findIndex((l) => l !== '');
+  return first >= 0 && heading.test(lines[first]) ? lines.slice(first + 1) : lines;
+}
+
+/** Non-empty runs separated by blank lines. */
+function blocks(lines: string[]): string[][] {
+  const out: string[][] = [];
+  let cur: string[] = [];
+  for (const l of lines) {
+    if (l) cur.push(l);
+    else if (cur.length) { out.push(cur); cur = []; }
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
+interface Anchor { at: number; range: string; inline?: string }
+
+/**
+ * A line that dates a role, as opposed to prose that mentions a year.
+ *
+ * Whatever trails the range may only be a duration ("· 3 yrs 10 mos",
+ * "(5 years 10 months)") or a work-arrangement chip; whatever leads it, if
+ * anything, is a header
+ * ("Engineer, Acme — 2019 - Present"). A sentence that happens to contain
+ * "2015 - 2018" fails one or the other and stays prose.
+ */
+function anchorAt(line: string, at: number): Anchor | null {
+  const m = DATE_RANGE.exec(line);
+  if (!m) return null;
+  const tail = line.slice(m.index + m[0].length)
+    .replace(/\b(?:Remote|Hybrid|On-site|Full-time|Part-time|Contract|Internship|Freelance)\b/gi, '')
+    .replace(/[·•|,()\-–—]/g, ' ')
+    .replace(/\b\d+\s*(?:years?|yrs?|months?|mos?)\b|less than a year/gi, '')
+    .trim();
+  if (tail) return null;
+  const lead = line.slice(0, m.index).replace(/[\s·•|,(\-–—:]+$/, '').trim();
+  // "Between 2015 - 2018 I ran…" fails on its tail; "From 2015 - 2018" on its lead.
+  if (lead && (lead.length > 100 || looksLikeProse(lead) ||
+      /(?:^|\s)(?:from|between|in|during|since|of|until|through|by)$/i.test(lead))) return null;
+  return { at, range: `${collapse(m[1])} - ${collapse(m[2])}`, inline: lead || undefined };
+}
+
+/**
+ * Title and employer from up to two header lines, nearest the dates first.
+ *
+ * Pasted text arrives in at least three orders: the live page (title, then
+ * "Company · Full-time"), the PDF (company, then title), and every résumé
+ * convention there is. The markers settle what they can — "·" follows an
+ * employer on the live page, " at " joins title to employer, and an employer's
+ * tenure line ("Full-time · 5 yrs") between the two lines means employer above,
+ * title below in either layout. What is left is the layout's own order: the PDF
+ * puts the title nearest the dates, the live page and most résumés put it first.
+ */
+function titleAndCompany(
+  header: string[],
+  { pdfOrder, grouped }: { pdfOrder: boolean; grouped: boolean },
+): { title?: string; company?: string } {
+  const dotted = header.findIndex((h) => / · /.test(h));
+  if (dotted >= 0) {
+    const other = header.find((_, i) => i !== dotted);
+    return { title: other, company: header[dotted].split(' · ')[0].trim() };
+  }
+  if (header.length === 1) {
+    const at = /^(.+?)\s+at\s+(.+)$/i.exec(header[0]);
+    return at ? { title: at[1].trim(), company: at[2].trim() } : { title: header[0] };
+  }
+  if (header.length === 0) return {};
+  return pdfOrder || grouped
+    ? { title: header[0], company: header[1] }
+    : { title: header[1], company: header[0] };
+}
+
+/** Durations in brackets — "(3 years 8 months)" — are the PDF's; the live page writes "· 2 yrs 10 mos". */
+function looksCopiedFromPdf(lines: string[]): boolean {
+  return lines.some((l) => DATE_RANGE.test(l) && /\(\s*(?:\d+\s*(?:years?|months?)\s*)+\)\s*$|\(less than a year\)/i.test(l));
+}
+
+/**
+ * Roles from free text, anchored on date-range lines.
+ *
+ * Description text is never dropped. When there are no anchors, or text sits
+ * above the first one, it is kept — as undated roles split on blank lines, or
+ * folded into the first role — because a misplaced sentence still counts toward
+ * how well the work is described, and a discarded one silently scores as absent.
+ */
+function parseExperience(text: string): Experience[] {
+  const lines = dropHeading(toLines(text), /^Experience$/i);
+  const anchors = lines.map((l, i) => (l ? anchorAt(l, i) : null)).filter((a): a is Anchor => a !== null);
+
+  if (!anchors.length) {
+    return blocks(lines).map((b) =>
+      b.length > 1 && b[0].length <= 80 && !looksLikeProse(b[0])
+        ? { title: b[0], description: b.slice(1).join('\n') }
+        : { description: b.join('\n') });
+  }
+
+  interface Placed { role: Experience; headerStart: number; bodyStart: number }
+  const placed: Placed[] = [];
+  const pdfOrder = looksCopiedFromPdf(lines);
+  let minIdx = 0;
+
+  for (const a of anchors) {
+    if (a.at < minIdx) continue;
+    let header: string[] = [];
+    let headerStart = a.at;
+    let grouped = false;
+    if (a.inline) {
+      header = [a.inline];
+    } else {
+      for (let i = a.at - 1; i >= minIdx && header.length < 2; i--) {
+        const l = lines[i];
+        if (!l) break;
+        if (DURATION_ONLY.test(l) || META_LINE.test(l)) {
+          if (header.length === 1 && DURATION_ONLY.test(l)) grouped = true;
+          headerStart = i;
+          continue;
+        }
+        if (l.length > 100 || looksLikeProse(l) || anchorAt(l, i)) break;
+        header.push(l);
+        headerStart = i;
+      }
+    }
+
+    let bodyStart = a.at + 1;
+    // Location and employment-type chips sit straight under the dates.
+    while (bodyStart < lines.length && lines[bodyStart] &&
+           (META_LINE.test(lines[bodyStart]) ||
+            (lines[bodyStart].length <= 60 && LOCATION_ISH.test(lines[bodyStart])))) bodyStart++;
+
+    placed.push({
+      role: { ...titleAndCompany(header, { pdfOrder, grouped }), dateRange: a.range, current: isCurrent(a.range) },
+      headerStart,
+      bodyStart,
+    });
+    minIdx = bodyStart;
+  }
+
+  placed.forEach((p, i) => {
+    const until = i + 1 < placed.length ? placed[i + 1].headerStart : lines.length;
+    p.role.description = lines.slice(p.bodyStart, until)
+      .filter((l) => !META_LINE.test(l))
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  });
+
+  const preface = lines.slice(0, placed[0].headerStart).filter(Boolean).join('\n');
+  if (preface) {
+    const first = placed[0].role;
+    first.description = [preface, first.description].filter(Boolean).join('\n');
+  }
+  return placed.map((p) => p.role);
+}
+
+const DATE_TAIL = /\s*·?\s*\(?\s*(?:[A-Za-z]{3,9}\s+)?(?:19|20)\d{2}\s*(?:[-–—]\s*(?:[A-Za-z]{3,9}\s+)?(?:(?:19|20)\d{2}|Present))?\s*\)?\s*$/i;
+const DATES_ONLY = /^\(?\s*(?:[A-Za-z]{3,9}\s+)?(?:19|20)\d{2}(?:\s*[-–—]\s*(?:[A-Za-z]{3,9}\s+)?(?:(?:19|20)\d{2}|Present))?\s*\)?$/i;
+
+/**
+ * Schools and degrees. Separated by blank lines, the second line of each block is
+ * the degree; run together, a line naming a degree attaches to the school above.
+ */
+function parseEducation(text: string): { school?: string; degree?: string }[] {
+  const lines = dropHeading(toLines(text), /^Education$/i);
+  const bs = blocks(lines);
+  const strip = (s: string) => s.replace(DATE_TAIL, '').trim() || undefined;
+
+  if (bs.length > 1) {
+    return bs.map((b) => {
+      const rest = b.slice(1).filter((l) => !DATES_ONLY.test(l));
+      return { school: strip(b[0]), degree: rest.length ? strip(rest[0]) : undefined };
+    });
+  }
+  const out: { school?: string; degree?: string }[] = [];
+  for (const l of lines.filter(Boolean)) {
+    if (DATES_ONLY.test(l)) continue;
+    const prev = out[out.length - 1];
+    if (prev && !prev.degree && DEGREE_WORDS.test(l)) prev.degree = strip(l);
+    else out.push({ school: strip(l) });
+  }
+  return out;
+}
+
+/** Skills separated by lines, commas, bullets or pipes; LinkedIn's provenance rows removed. */
+function parseSkills(text: string): string[] {
+  const seen = new Set<string>();
+  return text
+    .split(/[\n,;·•|]+/)
+    .map((s) => collapse(s))
+    .filter((s) => s && s.length < 80 && !/^(?:Skills|Top skills)$/i.test(s))
+    .filter((s) => !/^\d+\s+(?:endorsements?|experiences?)\b|^Show all|^Endorsed by\b/i.test(s))
+    .filter((s) => {
+      const k = s.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+}
+
+/**
+ * Evidence entries. Separated by blank lines, a block is a title and its
+ * description; run together, a prose-shaped line describes the entry above.
+ */
+function parseEvidence(kind: Evidence['kind'], text: string, heading: RegExp): Evidence[] {
+  const lines = dropHeading(toLines(text), heading);
+  const bs = blocks(lines);
+  if (bs.length > 1) {
+    return bs.map((b) => ({
+      kind,
+      title: b[0],
+      description: b.slice(1).join(' ') || undefined,
+    }));
+  }
+  const out: Evidence[] = [];
+  for (const l of lines.filter(Boolean)) {
+    const prev = out[out.length - 1];
+    if (prev && looksLikeProse(l)) prev.description = prev.description ? `${prev.description} ${l}` : l;
+    else out.push({ kind, title: l });
+  }
+  return out;
+}
+
+export function fromPaste(sections: PasteSections): Profile {
+  const s: Record<string, unknown> = sections && typeof sections === 'object' ? { ...sections } : {};
+  const given = (k: keyof PasteSections): string | undefined =>
+    Object.prototype.hasOwnProperty.call(s, k) && typeof s[k] === 'string' ? (s[k] as string) : undefined;
+
+  const profile: Profile = {};
+  const observed: string[] = [];
+
+  const name = given('name');
+  if (name !== undefined) { profile.name = collapse(name); observed.push('name'); }
+
+  const headline = given('headline');
+  if (headline !== undefined) { profile.headline = collapse(headline); observed.push('headline'); }
+
+  const about = given('about');
+  if (about !== undefined) {
+    profile.about = dropHeading(toLines(about), /^About$/i).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    observed.push('about');
+  }
+
+  const experience = given('experience');
+  if (experience !== undefined) {
+    profile.experience = parseExperience(experience);
+    observed.push('experience');
+  }
+
+  const education = given('education');
+  if (education !== undefined) {
+    profile.education = parseEducation(education);
+    observed.push('education');
+  }
+
+  const skills = given('skills');
+  if (skills !== undefined) {
+    profile.skills = parseSkills(skills);
+    observed.push('skills');
+  }
+
+  const certifications = given('certifications');
+  const projects = given('projects');
+  if (certifications !== undefined || projects !== undefined) {
+    profile.portfolio = [
+      ...(certifications ? parseEvidence('certification', certifications, /^(?:Licenses (?:&|and) )?certifications$/i) : []),
+      ...(projects ? parseEvidence('project', projects, /^Projects$/i) : []),
+    ];
+    observed.push('portfolio');
+  }
+
+  profile.observed = observed;
+  return profile;
+}

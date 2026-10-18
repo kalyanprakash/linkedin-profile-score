@@ -268,6 +268,16 @@ test('a localised export is mostly unobserved, not scored as an empty profile', 
   assert.ok(r.range.ceiling - r.range.floor >= 60, `range should be wide, got ${r.range.floor}-${r.range.ceiling}`);
 });
 
+test('an export whose main column cannot be read at all claims nothing, rather than a score off one check', () => {
+  // Claiming the one thing that did parse — a contact email — produced a point
+  // estimate of 100 measured over a single check. An empty claim is what the
+  // engine reports as "Nothing to read yet", and what a page can detect and
+  // explain ("is this an English-language export?").
+  const p = fromLinkedInPdfItems(layout(DUTCH));
+  assert.deepEqual(p.observed, []);
+  assert.equal(scoreProfile(p, 'job_search').score, 0);
+});
+
 test('sidebar headings are found even when there are as many headings as entries', () => {
   const p = fromLinkedInPdfItems(layout(SPARSE_SIDEBAR));
   assert.deepEqual(p.skills, ['Go'], 'Top Skills should be read');

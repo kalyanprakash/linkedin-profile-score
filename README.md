@@ -121,7 +121,7 @@ else imports.
 
 ```bash
 npm install
-npm test                              # 184 tests: engine, extractor, panel, history, web
+npm test                              # 185 tests: engine, extractor, panel, history, web
 npm run demo -- matrix                # every fixture against every goal
 npm run demo -- live job_search       # a full report
 npm run build:ext                     # → extension/dist and build/firefox
@@ -167,9 +167,12 @@ dropping:
   missing, because LinkedIn leaves empty sections out of the export — but only
   from a read that proves itself: every page the footers promise is present,
   a main heading was recognised and the header above it is a header, and the
-  sidebar's Contact section and headings all parsed. A non-English export or a
-  truncated upload therefore comes back mostly unobserved, with a wide range,
-  rather than as an empty profile. Top Skills are read for vocabulary but not
+  sidebar's Contact section and headings all parsed. A truncated upload
+  therefore comes back mostly unobserved, with a wide range, rather than as an
+  empty profile. A file whose main column cannot be placed at all — a
+  non-English export, or not a LinkedIn export — comes back with `observed: []`,
+  which the engine reports as "Nothing to read yet": check for that and show a
+  message rather than a score. Top Skills are read for vocabulary but not
   counted, because the export lists only the first few. Certifications, honours
   and publications are a lower bound on the portfolio (projects may be left
   out), so the count is scored only once it already earns full marks, and

@@ -746,6 +746,13 @@ export function fromLinkedInPdfItems(input: PdfTextItem[]): Profile {
     contact.every((l) => contactShaped(l.text));
   const cutShort = complete ? undefined : main.order[main.order.length - 1];
 
+  // Nothing in the main column could be placed — no header, no recognised
+  // section, as with a non-English export. Claiming whatever the sidebar yielded
+  // (a contact email, say) would produce a point estimate over one or two checks,
+  // which reads as a score and is not one. An empty claim is the honest answer,
+  // and one a page can detect and explain.
+  if (!headerOk && !MAIN_SECTIONS.some((id) => main.order.includes(id))) return { observed: [] };
+
   const profile: Profile = {};
   const observed: string[] = [];
 

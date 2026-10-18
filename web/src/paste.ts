@@ -2,7 +2,7 @@ import type { Evidence, Experience, Profile } from '../../packages/engine/src/ty
 import { PORTFOLIO_FULL_MARKS } from '../../packages/engine/src/rules/portfolio.ts';
 import {
   DATE_RANGE, DEGREE_WORDS, DURATION_ONLY, META_LINE,
-  collapse, isCurrent, isPlace, looksLikeProse,
+  collapse, durationMonths, isCurrent, isPlace, looksLikeProse, monthIndex,
 } from './lines.ts';
 
 /**
@@ -66,7 +66,14 @@ function blocks(lines: string[]): string[][] {
   return out;
 }
 
-interface Anchor { at: number; range: string; inline?: string }
+interface Anchor {
+  at: number;
+  range: string;
+  inline?: string;
+  /** Months since year 0, when readable — for placing a role inside an employer's tenure. */
+  start: number | null;
+  end: number | null;
+}
 
 /**
  * A line that dates a role, as opposed to prose that mentions a year.
@@ -90,7 +97,12 @@ function anchorAt(line: string, at: number): Anchor | null {
   // "Between 2015 - 2018 I ran…" fails on its tail; "From 2015 - 2018" on its lead.
   if (lead && (lead.length > 100 || looksLikeProse(lead) ||
       /(?:^|\s)(?:from|between|in|during|since|of|until|through|by)$/i.test(lead))) return null;
-  return { at, range: `${collapse(m[1])} - ${collapse(m[2])}`, inline: lead || undefined };
+  const start = monthIndex(m[1]);
+  const months = durationMonths(line.slice(m.index + m[0].length));
+  const end = isCurrent(m[2])
+    ? (start !== null && months !== null ? start + months - 1 : null)
+    : monthIndex(m[2]);
+  return { at, range: `${collapse(m[1])} - ${collapse(m[2])}`, inline: lead || undefined, start, end };
 }
 
 /**
@@ -151,27 +163,62 @@ function parseExperience(text: string): Experience[] {
   const placed: Placed[] = [];
   const pdfOrder = looksCopiedFromPdf(lines);
   let minIdx = 0;
+  /** The employer whose "Company / tenure" header the following roles sit under. */
+  let group: { company?: string; start: number | null } | null = null;
+  /** A group just ended, so the next role's employer line is expected. */
+  let newEmployerDue = false;
 
   for (const a of anchors) {
     if (a.at < minIdx) continue;
-    let header: string[] = [];
-    let headerStart = a.at;
+    const found: { text: string; at: number }[] = [];
     let grouped = false;
+    let tenure: number | null = null;
     if (a.inline) {
-      header = [a.inline];
+      found.push({ text: a.inline, at: a.at });
     } else {
-      for (let i = a.at - 1; i >= minIdx && header.length < 2; i--) {
+      for (let i = a.at - 1; i >= minIdx && found.length < 2; i--) {
         const l = lines[i];
         if (!l) break;
         if (DURATION_ONLY.test(l) || META_LINE.test(l)) {
-          if (header.length === 1 && DURATION_ONLY.test(l)) grouped = true;
-          headerStart = i;
+          if (found.length === 1 && DURATION_ONLY.test(l)) { grouped = true; tenure = durationMonths(l); }
           continue;
         }
         if (l.length > 100 || looksLikeProse(l) || anchorAt(l, i)) break;
-        header.push(l);
-        headerStart = i;
+        found.push({ text: l, at: i });
       }
+    }
+
+    // The nearest line is the title. A second line above it may be this role's
+    // employer — or the unpunctuated last line of the previous role's description,
+    // and layout cannot tell which. So it is taken only with something to confirm
+    // it: this is the first role; a "Company / tenure" header or a "Company ·
+    // Full-time" chip; a blank line above it; the employer group before it having
+    // just ended; or dates that put this role outside that group. Otherwise it stays description — misfiling a
+    // line as a title costs the description its words and the title its meaning.
+    const second = found[1];
+    const outsideGroup = group !== null && group.start !== null && a.start !== null && a.start < group.start - 1;
+    const confirmed = second !== undefined && (
+      placed.length === 0 || grouped || newEmployerDue || outsideGroup ||
+      found.some((f) => / · /.test(f.text)) ||
+      (second.at > 0 && !lines[second.at - 1])
+    );
+    const header = found.slice(0, confirmed ? 2 : 1);
+    const headerStart = header.length ? header[header.length - 1].at : a.at;
+
+    let { title, company } = titleAndCompany(header.map((h) => h.text), { pdfOrder, grouped: grouped && confirmed });
+    newEmployerDue = false;
+    if (grouped && confirmed) {
+      group = { company, start: a.end !== null && tenure !== null ? a.end - tenure + 1 : null };
+    } else if (!company && group && !outsideGroup) {
+      company = group.company;
+      // The role starting where the tenure starts is the employer's earliest, and
+      // it is listed last — whatever comes next is someone else.
+      if (group.start !== null && a.start !== null && a.start <= group.start + 1) {
+        group = null;
+        newEmployerDue = true;
+      }
+    } else if (company || outsideGroup) {
+      group = null;
     }
 
     let bodyStart = a.at + 1;
@@ -180,7 +227,7 @@ function parseExperience(text: string): Experience[] {
            (META_LINE.test(lines[bodyStart]) || isPlace(lines[bodyStart]))) bodyStart++;
 
     placed.push({
-      role: { ...titleAndCompany(header, { pdfOrder, grouped }), dateRange: a.range, current: isCurrent(a.range) },
+      role: { title, company, dateRange: a.range, current: isCurrent(a.range) },
       headerStart,
       bodyStart,
     });

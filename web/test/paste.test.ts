@@ -185,3 +185,50 @@ test('description lines that look like places or employment types are kept', () 
   }).experience!;
   assert.equal(role.description, 'Kafka, Go, PostgreSQL\nContract negotiations with 40 suppliers');
 });
+
+// ------------------------------------------- headers must not raid the last role
+
+/** Live-page copy of an employer with two roles, then a single-role employer. */
+const GROUPED_COPY = `Acme Corp
+Full-time · 7 yrs 8 mos
+Senior Engineer
+Jan 2021 - Present · 5 yrs 10 mos
+Runs the billing platform for 2M customers
+Engineer
+Mar 2019 - Dec 2020 · 1 yr 10 mos
+Built the invoicing service
+Analyst
+Globex
+Jan 2017 - Feb 2019 · 2 yrs 2 mos
+Modelled churn for the retail book`;
+
+test('an unpunctuated description line is not taken as the next role\'s title', () => {
+  const roles = fromPaste({ experience: GROUPED_COPY }).experience!;
+  assert.equal(roles[0].description, 'Runs the billing platform for 2M customers');
+  assert.equal(roles[1].title, 'Engineer');
+});
+
+test('roles under an employer\'s tenure line inherit the employer', () => {
+  const roles = fromPaste({ experience: GROUPED_COPY }).experience!;
+  assert.deepEqual(roles.map((r) => [r.title, r.company]), [
+    ['Senior Engineer', 'Acme Corp'],
+    ['Engineer', 'Acme Corp'],
+    ['Analyst', 'Globex'],
+  ]);
+  assert.equal(roles[1].description, 'Built the invoicing service');
+});
+
+test('a blank line between roles under one employer does not lose the employer', () => {
+  const roles = fromPaste({ experience: GROUPED_COPY.replace('customers\nEngineer', 'customers\n\nEngineer') }).experience!;
+  assert.equal(roles[1].title, 'Engineer');
+  assert.equal(roles[1].company, 'Acme Corp');
+});
+
+test('a header line is taken from the previous body only with something to confirm it', () => {
+  // No "·", no tenure line, no blank line: "Team of 14 engineers" stays description.
+  const roles = fromPaste({
+    experience: 'Staff Engineer\nNorthwind\nJan 2021 - Present\nLed the ledger rebuild.\nTeam of 14 engineers\nSenior Engineer\nJan 2018 - Dec 2020\nShipped billing.',
+  }).experience!;
+  assert.match(roles[0].description!, /Team of 14 engineers$/);
+  assert.equal(roles[1].title, 'Senior Engineer');
+});

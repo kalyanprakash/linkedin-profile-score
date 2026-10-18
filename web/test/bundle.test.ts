@@ -95,6 +95,21 @@ for (const variant of Object.keys(variants)) {
   });
 }
 
+test('the network check catches the ways round a plain fetch( match', () => {
+  // Each of these reached the network, or could build something that does, and
+  // slipped past the original pattern.
+  for (const bad of [
+    "globalThis['fe'+'tch'](u)", 'const f=fetch; f(u)', 'fetch (u)', 'fetch.call(null, u)', 'window.fetch(u)',
+    "import('https://x.example/m.js')", 'new Image().src = u', 'img.src=u', 'new EventSource(u)',
+    'new RTCPeerConnection()', "new Worker('w.js')", 'new SharedWorker(u)', 'navigator.serviceWorker.register(u)',
+    'new WebTransport(u)', "importScripts('x.js')", "self['XMLHttp'+'Request']", "eval('fe'+'tch')",
+    "Function('return fetch')()", "location.href = u", 'location.assign(u)', 'form.submit()',
+    "document.createElement('script')", "window.open(u)",
+  ]) {
+    assert.ok(networkPrimitives(`const a = 1;\n${bad};`).length >= 1, bad);
+  }
+});
+
 test('the network check catches every primitive it claims to', () => {
   // A check that cannot fail proves nothing; prove this one can.
   for (const bad of ['fetch(url)', 'new XMLHttpRequest()', 'new WebSocket(u)', 'navigator.sendBeacon(u)', 'navigator.connection']) {
@@ -102,3 +117,69 @@ test('the network check catches every primitive it claims to', () => {
   }
   assert.deepEqual(networkPrimitives('const prefetched = refetch;'), []);
 });
+
+/**
+ * Every global the bundle may touch. Plain ECMAScript intrinsics, plus
+ * structuredClone (the engine copies a profile to simulate a fix) and its own
+ * export. Nothing that talks to anything.
+ */
+const GLOBAL_ALLOWLIST = new Set([
+  'Array', 'Boolean', 'Date', 'Error', 'Infinity', 'JSON', 'Map', 'Math', 'NaN', 'Number', 'Object',
+  'RangeError', 'Reflect', 'RegExp', 'Set', 'String', 'Symbol', 'TypeError', 'WeakMap', 'WeakSet',
+  'globalThis', 'isFinite', 'isNaN', 'parseFloat', 'parseInt', 'undefined',
+  'structuredClone', 'ProfileScoreWeb',
+]);
+
+const NETWORK_GLOBALS = [
+  'fetch', 'XMLHttpRequest', 'WebSocket', 'navigator', 'Image', 'EventSource', 'Worker', 'SharedWorker',
+  'RTCPeerConnection', 'WebTransport', 'importScripts', 'location', 'document', 'window', 'self', 'open',
+  'eval', 'Function',
+];
+
+for (const variant of Object.keys(variants)) {
+  test(`${variant}: at run time, touches no global off the allowlist`, async () => {
+    // The static check reads text; this watches behaviour. The bundle runs against
+    // a global object that records every name looked up on it and answers only for
+    // allowlisted ones, then every entry point is exercised.
+    const code = await variants[variant];
+    const touched = new Set<string>();
+    const store: Record<string, unknown> = {};
+    const g = globalThis as Record<string, unknown>;
+    let sandbox: object;
+    sandbox = new Proxy(store, {
+      get(t, k) {
+        if (typeof k !== 'string') return undefined;
+        touched.add(k);
+        if (k in t) return t[k];
+        if (k === 'globalThis') return sandbox;
+        return GLOBAL_ALLOWLIST.has(k) ? g[k] : undefined;
+      },
+      has(_t, k) {
+        if (typeof k === 'string') touched.add(k);
+        return true;
+      },
+      set(t, k, v) {
+        if (typeof k === 'string') touched.add(k);
+        (t as Record<string | symbol, unknown>)[k] = v;
+        return true;
+      },
+    });
+    const ctx = vm.createContext(sandbox);
+    vm.runInContext(code, ctx);
+    const api = store.ProfileScoreWeb as any;
+    const pdf = api.fromLinkedInPdfItems(layout(LONG_CAREER));
+    const pasted = api.fromPaste({
+      name: 'A', headline: 'Data analyst | SQL', about: 'I build dashboards. Message me.',
+      experience: 'Analyst\nAcme · Full-time\nJan 2020 - Present · 6 yrs 10 mos\nCut reporting time by 40%.',
+      education: 'Leeds\nBSc, Maths', skills: 'SQL, Python', certifications: 'PMP', projects: 'Tracker\nBuilt a tracker.',
+    });
+    for (const p of [pdf, pasted, { observed: [] }]) {
+      for (const persona of api.personas) api.score(p, persona.id);
+    }
+    assert.throws(() => api.score(null));
+
+    const offList = [...touched].filter((k) => !GLOBAL_ALLOWLIST.has(k));
+    assert.deepEqual(offList, [], `globals touched outside the allowlist: ${offList.join(', ')}`);
+    for (const name of NETWORK_GLOBALS) assert.ok(!touched.has(name), `${name} was touched`);
+  });
+}

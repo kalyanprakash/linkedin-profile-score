@@ -368,7 +368,7 @@ function parseHeader(lines: Line[]): { name?: string; headline?: string; locatio
     lines.forEach((l, i) => { if ((l.fontSize ?? 0) > (lines[nameAt].fontSize ?? 0)) nameAt = i; });
   }
   const rest = lines.slice(nameAt + 1);
-  let location: string | undefined;
+  let place: string | undefined;
   let headline = rest;
 
   // Location is the last header line, set smaller than the headline. Without font
@@ -378,17 +378,19 @@ function parseHeader(lines: Line[]): { name?: string; headline?: string; locatio
   if (rest.length >= 2) {
     const smaller = last.fontSize !== undefined && rest[0].fontSize !== undefined && last.fontSize < rest[0].fontSize - 0.01;
     if (smaller || isPlace(last.text)) {
-      location = last.text;
+      place = last.text;
       headline = rest.slice(0, -1);
     }
   } else if (rest.length === 1 && isPlace(last.text)) {
-    location = last.text;
+    place = last.text;
     headline = [];
   }
   return {
     name: lines[nameAt].text,
     headline: headline.map((l) => l.text).join(' ').trim(),
-    location,
+    // Named `place` locally: assigning to a bare identifier called location is
+    // what the no-network check looks for, since in a browser it navigates.
+    location: place,
   };
 }
 

@@ -133,3 +133,34 @@ test('a reading under a different rubric produces no progress line', async () =>
   assert.equal(dom.window.document.querySelector('.lps-moved'), null);
   dom.window.close();
 });
+
+test('a panel from an earlier page never redraws into a later one', async () => {
+  // The lazy-load observer re-scans after a mutation. Under test every case swaps
+  // the global document, so an earlier panel's observer used to count cards on the
+  // NEW page, see a difference, and redraw into it 600ms later — replacing the
+  // panel the current case was asserting on. That was the intermittent failure of
+  // the progress test above. A run is now bound to the document it started on.
+  const first = await mountPanel({ withFeatured: false, withRecommendations: false });
+  const stored: Record<string, string> = {
+    'lps.history': JSON.stringify({ job_search: [{ s: 40, d: '2026-09-01', v: (await import('../../packages/engine/src/version.ts')).RUBRIC_VERSION }] }),
+  };
+  const second = await mountPanel({}, (g) => {
+    g.chrome = {
+      storage: {
+        local: {
+          get: (key: string) => Promise.resolve({ [key]: stored[key] }),
+          set: (items: Record<string, string>) => { Object.assign(stored, items); return Promise.resolve(); },
+        },
+      },
+    };
+  });
+  assert.ok(second.window.document.querySelector('.lps-moved'), 'precondition: the second panel shows progress');
+
+  // Provoke the first page's observer, then wait past its re-scan delay.
+  first.window.document.body.append(first.window.document.createElement('p'));
+  await new Promise((r) => setTimeout(r, 750));
+  assert.ok(second.window.document.querySelector('.lps-moved'),
+    'the second page was redrawn by the first page\'s observer');
+  first.window.close();
+  second.window.close();
+});

@@ -402,19 +402,30 @@ async function run(): Promise<void> {
   // Cards below the fold hydrate lazily, so the first scan sees fewer sections
   // than exist. Re-scan when new cards appear rather than reporting a score
   // built on half the page.
-  let known = document.querySelectorAll('div[componentkey]').length;
+  //
+  // Bound to the document this run started on. `draw` reads the global document,
+  // and if that is ever a different one by the time the observer fires, a
+  // re-scan of this page would draw into that one. In a browser the content
+  // script's document never changes, so this costs nothing; under test every case
+  // installs a fresh document, and an earlier case's observer was redrawing the
+  // next case's panel — an intermittent failure that looked like a timing bug.
+  const doc = document;
+  const stale = () => document !== doc;
+  let known = doc.querySelectorAll('div[componentkey]').length;
   let timer: number | undefined;
   const obs = new MutationObserver(() => {
-    const now = document.querySelectorAll('div[componentkey]').length;
+    if (stale()) { obs.disconnect(); return; }
+    const now = doc.querySelectorAll('div[componentkey]').length;
     if (now === known) return;
     known = now;
     clearTimeout(timer);
     timer = setTimeout(() => {
+      if (stale()) return;
       draw(persona);
       console.log('[profile-score] re-scanned after lazy load');
     }, 600) as unknown as number;
   });
-  obs.observe(document.body, { childList: true, subtree: true });
+  obs.observe(doc.body, { childList: true, subtree: true });
   stopWatching(() => obs.disconnect(), 60000);
 }
 

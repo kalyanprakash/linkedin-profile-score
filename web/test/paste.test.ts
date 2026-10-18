@@ -138,10 +138,19 @@ test('an explicitly blank experience is an observed empty work history', () => {
   assert.ok(p.observed!.includes('experience'));
 });
 
-test('portfolio is observed when either evidence field is present', () => {
-  assert.ok(fromPaste({ certifications: '' }).observed!.includes('portfolio'));
-  assert.ok(fromPaste({ projects: 'Bus tracker' }).observed!.includes('portfolio'));
+test('portfolio is observed as a complete answer only when both evidence fields were sent', () => {
+  // One field is a lower bound: a certification-only form never asked about
+  // projects, so one certification is not "a portfolio of one".
+  assert.ok(!fromPaste({ certifications: 'PMP' }).observed!.includes('portfolio'));
+  assert.ok(!fromPaste({ certifications: '' }).observed!.includes('portfolio'));
+  assert.ok(!fromPaste({ projects: 'Bus tracker' }).observed!.includes('portfolio'));
   assert.ok(!fromPaste({ about: 'x' }).observed!.includes('portfolio'));
+  // Both asked: an empty answer is a real one.
+  const both = fromPaste({ certifications: '', projects: '' });
+  assert.ok(both.observed!.includes('portfolio'));
+  assert.deepEqual(both.portfolio, []);
+  // A lower bound that already earns full marks is safe to score.
+  assert.ok(fromPaste({ certifications: 'PMP\nCISSP\nCCNA' }).observed!.includes('portfolio'));
 });
 
 test('paste never observes what it cannot see, so those checks abstain and widen the range', () => {
@@ -157,4 +166,10 @@ test('paste never observes what it cannot see, so those checks abstain and widen
 test('garbage input yields an empty claim rather than throwing', () => {
   assert.deepEqual(fromPaste(undefined as never), { observed: [] });
   assert.deepEqual(fromPaste({ name: 42 as never }), { observed: [] });
+});
+
+test('portfolio descriptions are observed only when projects were pasted, since certifications carry none', () => {
+  assert.ok(!fromPaste({ certifications: 'PMP', projects: undefined }).observed!.includes('portfolioDescriptions'));
+  assert.ok(!fromPaste({ certifications: 'PMP\nCISSP\nCCNA' }).observed!.includes('portfolioDescriptions'));
+  assert.ok(fromPaste({ certifications: '', projects: 'Bus tracker\nBuilt a live bus-arrival app.' }).observed!.includes('portfolioDescriptions'));
 });

@@ -750,3 +750,18 @@ test('one role means one piece of advice about describing it', async () => {
     'with a single role these are one job listed twice, each claiming the same points',
   );
 });
+
+test('portfolio descriptions are scored only when they were read', () => {
+  // An extractor that saw the entries but not their prose — the PDF export prints
+  // titles only — must not have every entry scored as undescribed.
+  const titlesOnly: Profile = {
+    portfolio: [{ kind: 'certification', title: 'CKA' }, { kind: 'project', title: 'Bus tracker' }],
+    observed: ['portfolio'],
+  };
+  const r = scoreProfile(titlesOnly, 'job_search');
+  assert.ok(r.abstained.some((a) => a.id === 'portfolio.described'));
+  assert.ok(r.rules.some((x) => x.id === 'portfolio.present'), 'the entries themselves were seen');
+
+  const read = scoreProfile({ ...titlesOnly, observed: ['portfolio', 'portfolioDescriptions'] }, 'job_search');
+  assert.ok(read.rules.some((x) => x.id === 'portfolio.described'));
+});

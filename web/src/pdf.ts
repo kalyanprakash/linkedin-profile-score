@@ -1,4 +1,5 @@
 import type { Evidence, Experience, Profile } from '../../packages/engine/src/types.ts';
+import { PORTFOLIO_FULL_MARKS } from '../../packages/engine/src/rules/portfolio.ts';
 import {
   DEGREE_WORDS, DURATION_ONLY, LOCATION_ISH, META_LINE, PDF_DATE_LINE,
   collapse, durationMonths, isCurrent, looksLikeProse, monthIndex,
@@ -37,10 +38,17 @@ import {
  *    profiles that most need telling — the abstention-inflation problem `range`
  *    exists to bound, here for no reason at all.
  *
- *  - Observed only on positive evidence: portfolio, contact info, location.
- *    The sidebar shows certifications, honours and publications, but whether the
- *    export carries projects, volunteering or courses is not established, so an
- *    empty sidebar does not prove an empty portfolio. Contact details depend on
+ *  - Portfolio: the sidebar shows certifications, honours and publications, but
+ *    whether the export carries projects, volunteering or courses is not
+ *    established. So what it shows is a lower bound on the person's evidence, and
+ *    a lower bound can only be scored once it already earns full marks
+ *    (`PORTFOLIO_FULL_MARKS` entries): two certifications might be the whole
+ *    portfolio or a third of it, three or more is full marks either way. Below
+ *    that the entries are kept for display and the count abstains. Descriptions
+ *    (`portfolioDescriptions`) are never observed — the export prints titles only,
+ *    and scoring them as undescribed would price its layout as the person's gap.
+ *
+ *  - Observed only on positive evidence: contact info, location. Contact details depend on
  *    the member's visibility settings, and the LinkedIn URL that is always printed
  *    does not count as a route to reach anyone. A location that could not be told
  *    apart from the headline is a parse failure, not a missing location.
@@ -597,10 +605,8 @@ export function fromLinkedInPdfItems(input: PdfTextItem[]): Profile {
     const lines = part(kind);
     return lines ? parseEvidence(kind, lines) : [];
   });
-  if (evidence.length) {
-    profile.portfolio = evidence;
-    observed.push('portfolio');
-  }
+  if (evidence.length) profile.portfolio = evidence;
+  if (evidence.length >= PORTFOLIO_FULL_MARKS) observed.push('portfolio');
 
   const contact = part('contact');
   if (contact && hasContactRoute(contact)) {

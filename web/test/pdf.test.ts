@@ -148,12 +148,12 @@ test('a missing Summary is an observed empty About, not an unread one', () => {
   assert.ok(p.observed!.includes('about'));
 });
 
-test('a new graduate has experience and skills observed as empty, education and certifications as read', () => {
+test('a new graduate has experience and skills observed as empty, education as read', () => {
   const p = grad();
   assert.deepEqual(p.experience, []);
   assert.deepEqual(p.skills, []);
   assert.deepEqual(p.education, [{ school: 'Osaka University', degree: "Bachelor's degree, Computer Science" }]);
-  for (const f of ['experience', 'skills', 'education', 'portfolio', 'about']) {
+  for (const f of ['experience', 'skills', 'education', 'about']) {
     assert.ok(p.observed!.includes(f), `${f} should be observed`);
   }
 });
@@ -227,4 +227,27 @@ test('scoring a PDF-derived profile abstains on what the export cannot show, rat
   const zeroed = scoreProfile(asZeros, 'job_search');
   assert.ok(zeroed.uncappedScore < report.uncappedScore);
   assert.ok(zeroed.uncappedScore >= report.range.floor);
+});
+
+test('the export prints evidence titles only, so portfolio descriptions are never observed', () => {
+  for (const p of [long(), noSummary(), grad()]) {
+    assert.ok(!p.observed!.includes('portfolioDescriptions'));
+    assert.ok(!scoreProfile(p, 'job_search').rules.some((r) => r.id === 'portfolio.described'),
+      'portfolio.described must abstain, not score titles as undescribed');
+  }
+});
+
+test('visible evidence is a lower bound, so the count is scored only once it already earns full marks', () => {
+  // The export may leave out projects and volunteering. Two certifications mean
+  // "at least two", which could be full marks or not — so it abstains. Three or
+  // more is full marks whatever else is missing, so it is safe to score.
+  const g = grad();
+  assert.equal(g.portfolio!.length, 2);
+  assert.ok(!g.observed!.includes('portfolio'));
+  assert.ok(scoreProfile(g, 'job_search').abstained.some((a) => a.id === 'portfolio.present'));
+
+  const l = long();
+  assert.ok(l.portfolio!.length >= 3);
+  assert.ok(l.observed!.includes('portfolio'));
+  assert.equal(scoreProfile(l, 'job_search').rules.find((r) => r.id === 'portfolio.present')!.ratio, 1);
 });

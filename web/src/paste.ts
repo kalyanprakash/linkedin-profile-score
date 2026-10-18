@@ -1,4 +1,5 @@
 import type { Evidence, Experience, Profile } from '../../packages/engine/src/types.ts';
+import { PORTFOLIO_FULL_MARKS } from '../../packages/engine/src/rules/portfolio.ts';
 import {
   DATE_RANGE, DEGREE_WORDS, DURATION_ONLY, LOCATION_ISH, META_LINE,
   collapse, isCurrent, looksLikeProse,
@@ -19,9 +20,14 @@ import {
  * So the page decides by what it sends: include the key for a field the person
  * was shown, omit it for one they were not. `null` is treated as omitted.
  *
- * Certifications and projects both feed `portfolio`; it is observed when either
- * key is present, since the person was then asked about their evidence and
- * answered.
+ * Certifications and projects both feed `portfolio`, so it is observed only when
+ * both keys were sent: then the person was asked for all of their evidence, and an
+ * empty answer is a real one. With only one key, what came back is a lower bound
+ * — the projects nobody asked for may exist — and like the PDF it is scored only
+ * once it already earns full marks (`PORTFOLIO_FULL_MARKS`). Descriptions
+ * (`portfolioDescriptions`) are claimed only when projects were pasted:
+ * certifications carry no prose on LinkedIn, so a certifications-only paste says
+ * nothing about how well the evidence is described.
  *
  * Paste never observes the things it cannot see: photo, banner, featured,
  * recommendations, activity, open-to-work, custom URL, contact info, location,
@@ -311,7 +317,11 @@ export function fromPaste(sections: PasteSections): Profile {
       ...(certifications ? parseEvidence('certification', certifications, /^(?:Licenses (?:&|and) )?certifications$/i) : []),
       ...(projects ? parseEvidence('project', projects, /^Projects$/i) : []),
     ];
-    observed.push('portfolio');
+    const complete = certifications !== undefined && projects !== undefined;
+    if (complete || profile.portfolio.length >= PORTFOLIO_FULL_MARKS) {
+      observed.push('portfolio');
+      if (projects !== undefined) observed.push('portfolioDescriptions');
+    }
   }
 
   profile.observed = observed;

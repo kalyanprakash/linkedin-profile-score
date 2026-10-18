@@ -15,7 +15,7 @@ import type { Profile } from '../../src/types.ts';
 const observedAll = [
   'name', 'headline', 'about', 'experience', 'skills', 'featured', 'banner', 'photo',
   'activity', 'customUrl', 'recommendationsReceived', 'location', 'contactInfoAvailable',
-  'education', 'employerCount', 'portfolio',
+  'education', 'employerCount', 'portfolio', 'portfolioDescriptions',
 ];
 
 /** 12 short engagements. Tests recency weighting and ratios over many roles. */

@@ -178,3 +178,10 @@ test('a paste of only headline and skills does not score keyword reinforcement a
   const p = fromPaste({ headline: 'Data Engineer', skills: 'Airflow, dbt, Snowflake, Python, SQL' });
   assert.ok(scoreProfile(p, 'job_search').abstained.some((a) => a.id === 'keywords.reinforcement'));
 });
+
+test('description lines that look like places or employment types are kept', () => {
+  const [role] = fromPaste({
+    experience: 'Buyer\nAcme Retail\nJan 2019 - Dec 2022\nKafka, Go, PostgreSQL\nContract negotiations with 40 suppliers',
+  }).experience!;
+  assert.equal(role.description, 'Kafka, Go, PostgreSQL\nContract negotiations with 40 suppliers');
+});

@@ -5,7 +5,8 @@ import { fromLinkedInPdfItems } from '../src/pdf.ts';
 import { scoreProfile } from '../../packages/engine/src/score.ts';
 import type { Profile } from '../../packages/engine/src/types.ts';
 import {
-  layout, LONG_CAREER, NO_SUMMARY, NEW_GRAD, NOT_LINKEDIN,
+  layout, LONG_CAREER, NO_SUMMARY, NEW_GRAD, NOT_LINKEDIN, DUTCH, SPARSE_SIDEBAR,
+  h, l, NAME, HEADLINE, LOCATION, COMPANY, TITLE, BODY, SIDE, H_SIDE, type Flow,
 } from './fixtures/linkedin-pdf-synthetic.ts';
 
 /**
@@ -250,4 +251,148 @@ test('visible evidence is a lower bound, so the count is scored only once it alr
   assert.ok(l.portfolio!.length >= 3);
   assert.ok(l.observed!.includes('portfolio'));
   assert.equal(scoreProfile(l, 'job_search').rules.find((r) => r.id === 'portfolio.present')!.ratio, 1);
+});
+
+// ------------------------------------------------- absence needs a complete read
+
+/** Fields whose absence the importer may claim as real — and must not, on a bad read. */
+const ABSENCE_FIELDS = ['about', 'experience', 'education', 'skills'];
+
+test('a localised export is mostly unobserved, not scored as an empty profile', () => {
+  // Only "Contact" is recognised. Everything else is present but unreadable, and
+  // must widen the range rather than score as missing.
+  const p = fromLinkedInPdfItems(layout(DUTCH));
+  for (const f of ABSENCE_FIELDS) assert.ok(!p.observed!.includes(f), `${f} must not be claimed absent`);
+  assert.ok(!p.observed!.includes('headline'), 'the header cannot be told apart from the body');
+  const r = scoreProfile(p, 'job_search');
+  assert.ok(r.range.ceiling - r.range.floor >= 60, `range should be wide, got ${r.range.floor}-${r.range.ceiling}`);
+});
+
+test('sidebar headings are found even when there are as many headings as entries', () => {
+  const p = fromLinkedInPdfItems(layout(SPARSE_SIDEBAR));
+  assert.deepEqual(p.skills, ['Go'], 'Top Skills should be read');
+  assert.ok(!p.observed!.includes('skills'), 'present Top Skills is never a count');
+  assert.equal(p.contactInfoAvailable, true, 'Contact should be read');
+});
+
+test('a truncated upload claims no absences and does not trust the section it is cut in', () => {
+  // Page 1 of 2: the footer says a page is missing. Education is not absent, it
+  // was never uploaded; Experience is cut mid-entry.
+  const items = layout(LONG_CAREER).filter((i) => i.page === 1);
+  const p = fromLinkedInPdfItems(items);
+  assert.ok(!p.observed!.includes('education'), 'education was never uploaded');
+  assert.ok(!p.observed!.includes('experience'), 'experience is cut off mid-entry');
+  assert.ok(p.observed!.includes('about'), 'a section read whole is still read');
+});
+
+test('main-column absences are not claimed when the header runs on with dates in it', () => {
+  // No Summary heading AND a role's lines sitting before the first heading: the
+  // first heading was missed, so "no Summary" is not evidence of no About.
+  const p = fromLinkedInPdfItems(layout({
+    left: [h('Contact', H_SIDE), l('a.b@example.com', SIDE)],
+    main: [
+      l('Ana Bell', NAME), l('Nurse', HEADLINE, 6), l('Leeds, England, United Kingdom', LOCATION, 4),
+      l('Expérience', 15.75, 14), l('St James Hospital', COMPANY), l('Staff Nurse', TITLE),
+      l(['March 2018 - Present ', '(8 years 8 months)'], BODY), l('Ward sister for 28 beds.'),
+      h('Education'), l('University of Leeds', COMPANY), l('BSc, Nursing · (2014 - 2017)', BODY),
+    ] as Flow,
+  }));
+  assert.ok(!p.observed!.includes('about'));
+  assert.ok(!p.observed!.includes('experience'));
+  assert.ok(p.observed!.includes('education'), 'a section that was found is still read');
+});
+
+test('an empty headline is a parse failure, so it is left unobserved', () => {
+  const p = fromLinkedInPdfItems(layout({
+    left: [h('Contact', H_SIDE), l('x@example.com', SIDE)],
+    main: [l('Ana Bell', NAME), l('Leeds, England, United Kingdom', LOCATION, 4), h('Education'),
+      l('University of Leeds', COMPANY), l('BSc, Nursing · (2014 - 2017)', BODY)] as Flow,
+  }));
+  assert.equal(p.location, 'Leeds, England, United Kingdom');
+  assert.ok(!p.observed!.includes('headline'));
+});
+
+// ------------------------------------------------------------- parser hardening
+
+const roleFlow = (title: (string | [string, number])[], body: string[]): Flow => [
+  l('Pat Lee', NAME), l('Engineering leader', HEADLINE, 6), l('Leeds, England, United Kingdom', LOCATION, 4),
+  h('Experience'),
+  l('Northwind Payments', COMPANY),
+  ...title.map((t) => (Array.isArray(t) ? l(t[0], t[1]) : l(t, TITLE))),
+  l(['March 2020 - Present ', '(6 years 8 months)'], BODY),
+  ...body.map((b) => l(b)),
+  l('Globex', COMPANY, 10), l('Engineer', TITLE), l(['Jan 2015 - Feb 2020 ', '(5 years 2 months)'], BODY),
+  l('Built the routing engine that plans 300,000 deliveries a day across the region.'),
+  h('Education'), l('University of Leeds', COMPANY), l('BSc, Physics · (2010 - 2014)', BODY),
+];
+const sidebar: Flow = [h('Contact', H_SIDE), l('pat@example.com', SIDE)];
+
+test('a job title wrapped onto two lines is one title, not a title and an employer', () => {
+  for (const title of [
+    ['Senior Vice President, Global Payments Infrastructure and', 'Risk Engineering'],
+    ['Head of Engineering, Merchant Acquiring and Settlement Platforms Europe', 'Region'],
+  ]) {
+    const p = fromLinkedInPdfItems(layout({ left: sidebar, main: roleFlow(title, ['Runs a group of 60 engineers.']) }));
+    assert.equal(p.experience![0].company, 'Northwind Payments');
+    assert.equal(p.experience![0].title, title.join(' '));
+  }
+});
+
+test('heading lookup ignores Object prototype names', () => {
+  for (const noFontSizes of [false, true]) {
+    const p = fromLinkedInPdfItems(layout(
+      { left: sidebar, main: roleFlow(['Engineer'], ['constructor', '__proto__', 'toString']) },
+      { noFontSizes },
+    ));
+    assert.match(p.experience![0].description!, /constructor __proto__ toString/, `noFontSizes=${noFontSizes}`);
+    assert.equal(p.experience!.length, 2);
+  }
+});
+
+test('without font sizes, a body line that is exactly a heading name stays body text', () => {
+  const p = fromLinkedInPdfItems(layout(
+    { left: sidebar, main: roleFlow(['Engineer'], ['Grew the team from 4 to 20 people and set hiring standards.', 'Skills', 'Experience', 'Kept the platform at 99.99% availability.']) },
+    { noFontSizes: true },
+  ));
+  assert.equal(p.experience!.length, 2, 'a stray "Experience" must not restart the section');
+  assert.match(p.experience![0].description!, /Skills Experience Kept the platform/);
+  assert.ok(p.observed!.includes('skills'), 'no real Top Skills heading, so skills are genuinely absent');
+});
+
+test('a description line that looks like a list of places is kept, not dropped as a location', () => {
+  const p = fromLinkedInPdfItems(layout({ left: sidebar, main: roleFlow(['Engineer'], ['Kafka, Go, PostgreSQL', 'Built the settlement pipeline.']) }));
+  assert.match(p.experience![0].description!, /^Kafka, Go, PostgreSQL/);
+});
+
+test('a description line starting with an employment type is kept', () => {
+  const p = fromLinkedInPdfItems(layout({ left: sidebar, main: roleFlow(['Engineer'], ['Contract negotiations with 40 suppliers']) }));
+  assert.equal(p.experience![0].description, 'Contract negotiations with 40 suppliers');
+});
+
+test('an undated school stays its own entry instead of swallowing the next one', () => {
+  for (const noFontSizes of [false, true]) {
+    const p = fromLinkedInPdfItems(layout({
+      left: sidebar,
+      main: [l('Pat Lee', NAME), l('Engineer', HEADLINE, 6), l('Leeds, England, United Kingdom', LOCATION, 4),
+        h('Education'), l('Leeds Grammar School', COMPANY),
+        l('University of Leeds', COMPANY, 6), l('BSc, Physics · (2010 - 2014)', BODY)] as Flow,
+    }, { noFontSizes }));
+    assert.deepEqual(p.education, [
+      { school: 'Leeds Grammar School' },
+      { school: 'University of Leeds', degree: 'BSc, Physics' },
+    ], `noFontSizes=${noFontSizes}`);
+  }
+});
+
+test('pathological input is bounded: a huge line and a flood of items return quickly', () => {
+  const base = layout(LONG_CAREER);
+  const huge = [...base, { str: 'a'.repeat(80_000), x: 34, y: 300, page: 1, fontSize: 10.5 }];
+  let t = Date.now();
+  fromLinkedInPdfItems(huge);
+  assert.ok(Date.now() - t < 1000, `80k-char item took ${Date.now() - t}ms`);
+
+  const flood = [...base, ...Array.from({ length: 30_000 }, (_, i) => ({ str: 'Experience', x: 214, y: i % 700, page: 1 + (i % 3), fontSize: 15.75 }))];
+  t = Date.now();
+  fromLinkedInPdfItems(flood);
+  assert.ok(Date.now() - t < 3000, `30k heading items took ${Date.now() - t}ms`);
 });

@@ -101,19 +101,22 @@ function i0(s: string): string {
   return s.length % 2 ? '' : ' ';
 }
 
-// Type sizes, approximated.
-const NAME = 26;
-const HEADLINE = 12;
-const LOCATION = 10.5;
-const H_MAIN = 15.75;
-const H_SIDE = 13;
-const COMPANY = 12;
-const TITLE = 11.5;
-const BODY = 10.5;
-const SIDE = 10.5;
+// Type sizes, approximated. Exported, with the line helpers, so a test can lay
+// out a one-off variant without restating the whole layout.
+export const NAME = 26;
+export const HEADLINE = 12;
+export const LOCATION = 10.5;
+export const H_MAIN = 15.75;
+export const H_SIDE = 13;
+export const COMPANY = 12;
+export const TITLE = 11.5;
+export const BODY = 10.5;
+export const SIDE = 10.5;
 
-const h = (text: string, size = H_MAIN): PrintLine => ({ text, size, space: 14 });
-const l = (text: string | string[], size = BODY, space = 0): PrintLine => ({ text, size, space });
+/** A section heading, with the space LinkedIn sets above one. */
+export const h = (text: string, size = H_MAIN): PrintLine => ({ text, size, space: 14 });
+/** A body line. */
+export const l = (text: string | string[], size = BODY, space = 0): PrintLine => ({ text, size, space });
 
 /**
  * A long career: one employer holding three titles under a total tenure line,
@@ -267,5 +270,73 @@ export const NOT_LINKEDIN = {
     l('Work history', 13, 10),
     l('Barista, Bean There, 2019 - 2021'),
     l('Served coffee and trained new staff on the espresso machine.'),
+  ] as Flow,
+};
+
+/**
+ * A Dutch-language export. "Contact" is the same word in Dutch, so the sidebar's
+ * first heading is recognised — and nothing else is: Samenvatting, Ervaring,
+ * Opleiding, Top vaardigheden. All the content is there; none of it is readable
+ * by an English-heading parser, and none of it may be scored as missing.
+ */
+export const DUTCH = {
+  left: [
+    h('Contact', H_SIDE),
+    l('sanne.devries@example.com', SIDE),
+    l('www.linkedin.com/in/sanne-de-vries', SIDE),
+    l('(LinkedIn)', SIDE),
+    h('Top vaardigheden', H_SIDE),
+    l('Logistiek', SIDE),
+    l('Inkoop', SIDE),
+    l('Planning', SIDE),
+    h('Talen', H_SIDE),
+    l('Nederlands', SIDE),
+  ] as Flow,
+  main: [
+    l('Sanne de Vries', NAME),
+    l('Hoofd inkoop bij Van Dijk Logistiek', HEADLINE, 6),
+    l('Rotterdam, Zuid-Holland, Nederland', LOCATION, 4),
+    h('Samenvatting'),
+    l('Ik leid een inkoopteam van twaalf mensen en verlaagde de kosten met 14%.'),
+    h('Ervaring'),
+    l('Van Dijk Logistiek', COMPANY),
+    l('Hoofd inkoop', TITLE),
+    l(['2019 - 2024 ', '(5 jaar)'], BODY),
+    l('Verantwoordelijk voor een inkoopbudget van 40 miljoen euro.'),
+    h('Opleiding'),
+    l('Erasmus Universiteit Rotterdam', COMPANY),
+    l('Master, Bedrijfskunde · (2010 - 2012)', BODY),
+  ] as Flow,
+};
+
+/**
+ * A sidebar with as many headings as entries — one skill, one language, one
+ * certification — so a body size taken as the median of every line lands
+ * between the heading size and the entry size, and the headings stop reading as
+ * headings.
+ */
+export const SPARSE_SIDEBAR = {
+  left: [
+    h('Contact', H_SIDE),
+    l('lee.park@example.com', SIDE),
+    h('Top Skills', H_SIDE),
+    l('Go', SIDE),
+    h('Languages', H_SIDE),
+    l('Korean', SIDE),
+    h('Certifications', H_SIDE),
+    l('CKA', SIDE),
+  ] as Flow,
+  main: [
+    l('Lee Park', NAME),
+    l('Site Reliability Engineer', HEADLINE, 6),
+    l('Seoul, South Korea', LOCATION, 4),
+    h('Experience'),
+    l('Hanbit Cloud', COMPANY),
+    l('Site Reliability Engineer', TITLE),
+    l(['May 2022 - Present ', '(4 years 6 months)'], BODY),
+    l('Run the on-call rotation for 300 services.'),
+    h('Education'),
+    l('KAIST', COMPANY),
+    l('BS, Computer Science · (2016 - 2020)', BODY),
   ] as Flow,
 };

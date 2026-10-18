@@ -1,8 +1,8 @@
 import type { Evidence, Experience, Profile } from '../../packages/engine/src/types.ts';
 import { PORTFOLIO_FULL_MARKS } from '../../packages/engine/src/rules/portfolio.ts';
 import {
-  DATE_RANGE, DEGREE_WORDS, DURATION_ONLY, LOCATION_ISH, META_LINE,
-  collapse, isCurrent, looksLikeProse,
+  DATE_RANGE, DEGREE_WORDS, DURATION_ONLY, META_LINE,
+  collapse, isCurrent, isPlace, looksLikeProse,
 } from './lines.ts';
 
 /**
@@ -177,8 +177,7 @@ function parseExperience(text: string): Experience[] {
     let bodyStart = a.at + 1;
     // Location and employment-type chips sit straight under the dates.
     while (bodyStart < lines.length && lines[bodyStart] &&
-           (META_LINE.test(lines[bodyStart]) ||
-            (lines[bodyStart].length <= 60 && LOCATION_ISH.test(lines[bodyStart])))) bodyStart++;
+           (META_LINE.test(lines[bodyStart]) || isPlace(lines[bodyStart]))) bodyStart++;
 
     placed.push({
       role: { ...titleAndCompany(header, { pdfOrder, grouped }), dateRange: a.range, current: isCurrent(a.range) },

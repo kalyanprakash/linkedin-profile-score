@@ -121,7 +121,7 @@ else imports.
 
 ```bash
 npm install
-npm test                              # 155 tests: engine, extractor, panel, history, web
+npm test                              # 184 tests: engine, extractor, panel, history, web
 npm run demo -- matrix                # every fixture against every goal
 npm run demo -- live job_search       # a full report
 npm run build:ext                     # → extension/dist and build/firefox
@@ -163,14 +163,22 @@ dropping:
 
 - **PDF** never claims photo, banner, Featured, recommendations, activity,
   #OpenToWork or the custom URL — the export does not print them. It *does*
-  claim About, Experience and Education even when their headings are missing,
-  because LinkedIn leaves empty sections out of the export: no "Summary" means
-  no About, and that is a real answer. Top Skills are read for vocabulary but
-  not counted, because the export lists only the first few. The reasoning for
-  each field is at the top of `web/src/pdf.ts`.
+  claim About, Experience and Education as empty when their headings are
+  missing, because LinkedIn leaves empty sections out of the export — but only
+  from a read that proves itself: every page the footers promise is present,
+  a main heading was recognised and the header above it is a header, and the
+  sidebar's Contact section and headings all parsed. A non-English export or a
+  truncated upload therefore comes back mostly unobserved, with a wide range,
+  rather than as an empty profile. Top Skills are read for vocabulary but not
+  counted, because the export lists only the first few. Certifications, honours
+  and publications are a lower bound on the portfolio (projects may be left
+  out), so the count is scored only once it already earns full marks, and
+  their descriptions — never printed — are never scored. The reasoning for each
+  field is at the top of `web/src/pdf.ts`.
 - **Paste** claims a section exactly when its key is present — an empty string
   is "I have none", a missing key is "not asked". Send keys only for the fields
-  the person was shown.
+  the person was shown; send both `certifications` and `projects` if you ask
+  about evidence at all, since one alone is only a lower bound.
 
 For the PDF, pass pdf.js items as they come: `x` and `y` from `item.transform[4]`
 and `[5]`, `page` from 1, and `fontSize` (e.g. `Math.hypot(transform[2],
@@ -218,9 +226,13 @@ Apache rather than MIT. No CLA: contributions are inbound=outbound.
 ## Guarantees
 
 The built bundles — the extension's and the web build's — contain no `fetch`,
-`XMLHttpRequest`, `WebSocket` or `sendBeacon`. Profile data never leaves the
-browser. CI fails the build if any of those ever appear, so the claim breaks
-loudly rather than quietly. On a web page the claim is about this file: it never
+`XMLHttpRequest`, `WebSocket`, `sendBeacon`, EventSource, WebRTC, workers,
+dynamic `import()`, computed global lookups or code built from strings (the
+full pattern is in `scripts/check-network.mjs`). The web bundle is also run
+against a global object that refuses everything outside a short allowlist of
+language built-ins, so what it touches at run time is tested, not only what
+its text contains. Profile data never leaves the browser. CI fails the build
+if any of those ever appear, so the claim breaks loudly rather than quietly. On a web page the claim is about this file: it never
 sends the profile anywhere. What else the hosting page loads is that page's
 business, and worth checking before trusting it with a CV.
 

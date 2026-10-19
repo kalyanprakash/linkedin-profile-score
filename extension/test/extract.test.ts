@@ -267,3 +267,13 @@ test('portfolio is claimed only when the profile was properly read', async () =>
   assert.ok(full.observed!.includes('portfolio'), 'a full read knows the section is absent');
   assert.deepEqual(full.portfolio, [], 'absent after a full read is a real empty, not unknown');
 });
+
+test('a full read claims portfolio descriptions as well as the entries', async () => {
+  // The extension reads each evidence card's prose, so `portfolio.described` may
+  // score it. The PDF export prints titles only and must not make that claim —
+  // which is why the two are separate observations.
+  const full = await extract({ withProjects: true });
+  assert.ok(full.observed!.includes('portfolioDescriptions'));
+  const partial = await extract({ withExperience: false });
+  assert.ok(!partial.observed!.includes('portfolioDescriptions'));
+});

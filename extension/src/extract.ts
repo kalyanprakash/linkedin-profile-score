@@ -458,7 +458,8 @@ export function extractProfile(): Profile {
       for (const item of evidenceItems(root)) evidence.push({ kind, ...item });
     }
     profile.portfolio = evidence;
-    observed.push('portfolio');
+    // The cards' prose is read along with their titles, so descriptions were seen.
+    observed.push('portfolio', 'portfolioDescriptions');
   }
 
   // ------------------------------------------------------------- vanity URL

@@ -750,3 +750,33 @@ test('one role means one piece of advice about describing it', async () => {
     'with a single role these are one job listed twice, each claiming the same points',
   );
 });
+
+test('portfolio descriptions are scored only when they were read', () => {
+  // An extractor that saw the entries but not their prose — the PDF export prints
+  // titles only — must not have every entry scored as undescribed.
+  const titlesOnly: Profile = {
+    portfolio: [{ kind: 'certification', title: 'CKA' }, { kind: 'project', title: 'Bus tracker' }],
+    observed: ['portfolio'],
+  };
+  const r = scoreProfile(titlesOnly, 'job_search');
+  assert.ok(r.abstained.some((a) => a.id === 'portfolio.described'));
+  assert.ok(r.rules.some((x) => x.id === 'portfolio.present'), 'the entries themselves were seen');
+
+  const read = scoreProfile({ ...titlesOnly, observed: ['portfolio', 'portfolioDescriptions'] }, 'job_search');
+  assert.ok(read.rules.some((x) => x.id === 'portfolio.described'));
+});
+
+test('keyword reinforcement abstains when no prose section was read', () => {
+  // Terms listed with no About and no Experience READ is not "terms never written
+  // about" — the writing may exist in a section nobody looked at.
+  const p: Profile = {
+    headline: 'Data Engineer',
+    skills: ['Airflow', 'dbt', 'Snowflake', 'Python', 'SQL'],
+    observed: ['headline', 'skills'],
+  };
+  const r = scoreProfile(p, 'job_search');
+  assert.ok(r.abstained.some((a) => a.id === 'keywords.reinforcement'));
+  // Read and genuinely empty is still a zero.
+  const read = scoreProfile({ ...p, about: '', observed: ['headline', 'skills', 'about'] }, 'job_search');
+  assert.equal(read.rules.find((x) => x.id === 'keywords.reinforcement')!.ratio, 0);
+});

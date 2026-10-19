@@ -20,6 +20,13 @@ import { saw } from './util.ts';
  * X, which did Y" is the thing a reader can actually assess.
  */
 
+/**
+ * Entries at which `portfolio.present` is full marks. Exported because an importer
+ * that can only see SOME of a person's evidence needs it: a count it has seen is a
+ * lower bound, and a lower bound is only a score once it reaches this.
+ */
+export const PORTFOLIO_FULL_MARKS = 3;
+
 /** Words before an entry counts as genuinely described. Lower than a role: these are short by nature. */
 const FULL_DEPTH = 25;
 const MIN_WORDS = 6;
@@ -56,7 +63,7 @@ export const portfolioRules: Rule[] = [
       const items = profile.portfolio ?? [];
       // Three is full marks, not ten. This is a supporting case, and a wall of
       // certifications is not three times the profile that three good ones are.
-      const ratio = ramp(items.length, 0, 3);
+      const ratio = ramp(items.length, 0, PORTFOLIO_FULL_MARKS);
       return {
         ratio,
         observed: items.length
@@ -74,7 +81,10 @@ export const portfolioRules: Rule[] = [
     title: 'Those entries say what you actually did',
     base: 5,
     evaluate({ profile }) {
-      if (!saw(profile, 'portfolio')) return ABSTAIN;
+      // Seeing the entries is not seeing what they say. The PDF export prints
+      // titles only; scoring those as undescribed would charge the person for the
+      // export's layout. So the prose is its own observation.
+      if (!saw(profile, 'portfolio') || !saw(profile, 'portfolioDescriptions')) return ABSTAIN;
       const items = profile.portfolio ?? [];
       // Absence is priced by portfolio.present. Charging for it twice would make
       // an empty section cost more than a thin one, which is the wrong ordering.

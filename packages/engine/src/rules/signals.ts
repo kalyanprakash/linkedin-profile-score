@@ -11,6 +11,11 @@ export const signalRules: Rule[] = [
     title: 'Your key terms are backed up by prose, not just listed',
     base: 10,
     evaluate({ profile }) {
+      // Reinforcement is measured in prose, so with neither About nor Experience
+      // read there is nothing to measure — the writing may exist in a section
+      // nobody looked at. Without this a paste of headline + skills scored zero
+      // here: "never written about" said of sections never read.
+      if (!saw(profile, 'about') && !saw(profile, 'experience')) return ABSTAIN;
       // Declared skills only, not job-title tokens. Prose is measured with titles
       // excluded, so title words padded the denominator with terms the writing had
       // no natural reason to repeat.

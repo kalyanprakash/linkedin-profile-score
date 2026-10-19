@@ -63,7 +63,12 @@ export interface Profile {
    */
   skillsDeclaredCount?: number;
   featured?: FeaturedItem[];
-  /** Projects, publications, certifications, volunteering, honours, coursework. */
+  /**
+   * Projects, publications, certifications, volunteering, honours, coursework.
+   * Two observations govern it: `portfolio` (the entries were seen) and
+   * `portfolioDescriptions` (their prose was seen too). An extractor that reads
+   * titles only claims the first and not the second.
+   */
   portfolio?: Evidence[];
   recommendationsReceived?: number;
 

@@ -6,12 +6,14 @@
     "packages/engine"
   ],
   "scripts": {
-    "test": "node --experimental-strip-types --test packages/engine/test/*.test.ts extension/test/*.test.ts",
+    "test": "node --experimental-strip-types --test packages/engine/test/*.test.ts extension/test/*.test.ts web/test/*.test.ts",
     "demo": "node --experimental-strip-types packages/engine/test/demo.ts",
     "build:ext": "cd extension && node build.mjs",
+    "build:web": "node web/build.mjs",
     "watch": "cd extension && node build.mjs --watch",
     "report": "node --experimental-strip-types packages/engine/test/demo.ts",
-    "package": "node scripts/package.mjs"
+    "package": "node scripts/package.mjs",
+    "check:web": "node scripts/check-network.mjs web/dist/profile-score-web.js web/dist/profile-score-web.min.js"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.287",

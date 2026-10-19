@@ -102,20 +102,32 @@ extension/                Chrome + Firefox MV3
   src/storage.ts          cross-browser storage, best-effort
   src/history.ts          local score history — never leaves the device
   src/content.ts          the panel
+web/                      the same engine for a web page — one <script>, no build step
+  src/index.ts            window.ProfileScoreWeb: score + the two importers
+  src/pdf.ts              LinkedIn "Save to PDF" text items → Profile
+  src/paste.ts            pasted sections → Profile
+  src/lines.ts            date, duration and place patterns both importers share
+  build.mjs               → web/dist/profile-score-web.js and .min.js
+scripts/
+  check-network.mjs       the no-network check every bundle must pass
 ```
 
-The engine has no dependency on the extension and could back a paste-based web
-version unchanged.
+The engine has no dependency on the extension. `web/` sits beside `extension/`
+rather than under `packages/` because it is the same kind of thing: a consumer
+of the engine with its own inputs and its own bundle, not a library anything
+else imports.
 
 ## Running it
 
 ```bash
 npm install
-npm test                              # 99 tests: engine, extractor, panel, history
+npm test                              # 185 tests: engine, extractor, panel, history, web
 npm run demo -- matrix                # every fixture against every goal
 npm run demo -- live job_search       # a full report
 npm run build:ext                     # → extension/dist and build/firefox
 npm run watch                         # rebuild on save
+npm run build:web                     # → web/dist/profile-score-web.js (+ .min.js)
+npm run check:web                     # fails if the web bundle can reach the network
 ```
 
 **Chrome / Edge** — `chrome://extensions` → Developer mode → Load unpacked →
@@ -126,6 +138,61 @@ select `extension/`.
 
 Then open your own `linkedin.com/in/…` page. The panel appears top-right. Fix
 something, hit Rescan, and the next recommendation appears — the loop is the point.
+
+## On a web page
+
+`npm run build:web` emits one IIFE, readable and minified, that assigns:
+
+```js
+window.ProfileScoreWeb = {
+  version,                     // the rubric version, from packages/engine/src/version.ts
+  personas,                    // [{ id, label }] — the five goals
+  defaultPersona,              // 'job_search'
+  score(profile, persona?),    // → { report, advice } — the extension panel's own scoreProfile + advise
+  fromLinkedInPdfItems(items), // [{ str, x, y, page, fontSize? }] from pdf.js → Profile
+  fromPaste(sections),         // { name?, headline?, about?, experience?, education?,
+                               //   skills?, certifications?, projects? } → Profile
+};
+```
+
+Nothing is re-implemented: a profile scores the same on a page as in the
+extension. What is new is the two importers, and the part of them that matters
+is `observed`. Each one claims only what its input can actually show, so
+everything else abstains and the report's range widens instead of the score
+dropping:
+
+- **PDF** never claims photo, banner, Featured, recommendations, activity,
+  #OpenToWork or the custom URL — the export does not print them. It *does*
+  claim About, Experience and Education as empty when their headings are
+  missing, because LinkedIn leaves empty sections out of the export — but only
+  from a read that proves itself: every page the footers promise is present,
+  a main heading was recognised and the header above it is a header, and the
+  sidebar's Contact section and headings all parsed. A truncated upload
+  therefore comes back mostly unobserved, with a wide range, rather than as an
+  empty profile. A file whose main column cannot be placed at all — a
+  non-English export, or not a LinkedIn export — comes back with `observed: []`,
+  which the engine reports as "Nothing to read yet": check for that and show a
+  message rather than a score. Top Skills are read for vocabulary but not
+  counted, because the export lists only the first few. Certifications, honours
+  and publications are a lower bound on the portfolio (projects may be left
+  out), so the count is scored only once it already earns full marks, and
+  their descriptions — never printed — are never scored. The reasoning for each
+  field is at the top of `web/src/pdf.ts`.
+- **Paste** claims a section exactly when its key is present — an empty string
+  is "I have none", a missing key is "not asked". Send keys only for the fields
+  the person was shown; send both `certifications` and `projects` if you ask
+  about evidence at all, since one alone is only a lower bound.
+
+For the PDF, pass pdf.js items as they come: `x` and `y` from `item.transform[4]`
+and `[5]`, `page` from 1, and `fontSize` (e.g. `Math.hypot(transform[2],
+transform[3])`) whenever you have it — font size is what separates the location
+from the headline and a heading from a sentence. Either y orientation and any
+scale work; the columns are found by clustering, not by a pixel value.
+
+The PDF importer is tested against **synthetic** exports
+(`web/test/fixtures/linkedin-pdf-synthetic.ts`) built from the layout described
+there, not against a real one. Adding a real export's text items as a fixture —
+scrubbed of contact details — is the most useful next step for it.
 
 ## Testing
 
@@ -161,8 +228,15 @@ Apache rather than MIT. No CLA: contributions are inbound=outbound.
 
 ## Guarantees
 
-The built bundle contains no `fetch`, `XMLHttpRequest`, `WebSocket` or
-`sendBeacon`. Profile data never leaves the browser. CI fails the build if any of
-those ever appear, so the claim breaks loudly rather than quietly.
+The built bundles — the extension's and the web build's — contain no `fetch`,
+`XMLHttpRequest`, `WebSocket`, `sendBeacon`, EventSource, WebRTC, workers,
+dynamic `import()`, computed global lookups or code built from strings (the
+full pattern is in `scripts/check-network.mjs`). The web bundle is also run
+against a global object that refuses everything outside a short allowlist of
+language built-ins, so what it touches at run time is tested, not only what
+its text contains. Profile data never leaves the browser. CI fails the build
+if any of those ever appear, so the claim breaks loudly rather than quietly. On a web page the claim is about this file: it never
+sends the profile anywhere. What else the hosting page loads is that page's
+business, and worth checking before trusting it with a CV.
 
 Not affiliated with or endorsed by LinkedIn Corporation.

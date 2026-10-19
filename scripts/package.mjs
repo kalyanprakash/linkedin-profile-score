@@ -19,11 +19,10 @@ import { execFileSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { FORBIDDEN } from './check-network.mjs';
 
 const VERSION = JSON.parse(await readFile('extension/manifest.json', 'utf8')).version;
 const OUT = 'dist-store';
-
-const FORBIDDEN = /\bfetch\(|XMLHttpRequest|WebSocket|sendBeacon/;
 
 await mkdir(OUT, { recursive: true });
 

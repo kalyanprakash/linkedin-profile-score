@@ -1,0 +1,135 @@
+{
+  "engine/kalyan": {
+    "job_search": "30 (uncapped 30, range 16-63, 17 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "41 (uncapped 41, range 19-73, 17 abstained, lead: describe_current_role)",
+    "sales": "29 (uncapped 29, range 15-62, 17 abstained, lead: rewrite_headline)",
+    "thought_leadership": "30 (uncapped 30, range 17-61, 17 abstained, lead: start_posting)",
+    "hiring": "29 (uncapped 29, range 15-62, 17 abstained, lead: describe_current_role)"
+  },
+  "engine/kalyanLive": {
+    "job_search": "49 (uncapped 52, range 51-53, 1 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "61 (uncapped 61, range 59-62, 1 abstained, lead: describe_current_role)",
+    "sales": "49 (uncapped 49, range 48-50, 1 abstained, lead: rewrite_about)",
+    "thought_leadership": "50 (uncapped 50, range 49-51, 1 abstained, lead: rewrite_about)",
+    "hiring": "43 (uncapped 48, range 47-50, 1 abstained, lead: describe_current_role)"
+  },
+  "engine/strong": {
+    "job_search": "93 (uncapped 93, range 93-93, 0 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "93 (uncapped 93, range 93-93, 0 abstained, lead: describe_current_role)",
+    "sales": "95 (uncapped 95, range 95-95, 0 abstained, lead: rewrite_about)",
+    "thought_leadership": "95 (uncapped 95, range 95-95, 0 abstained, lead: rewrite_about)",
+    "hiring": "94 (uncapped 94, range 94-94, 0 abstained, lead: rewrite_about)"
+  },
+  "engine/empty": {
+    "job_search": "0 (uncapped 0, range 0-22, 5 abstained, lead: rewrite_headline)",
+    "recruiter_inbound": "0 (uncapped 0, range 0-26, 5 abstained, lead: fill_skills)",
+    "sales": "0 (uncapped 0, range 0-17, 5 abstained, lead: rewrite_about)",
+    "thought_leadership": "0 (uncapped 0, range 0-16, 5 abstained, lead: rewrite_about)",
+    "hiring": "0 (uncapped 0, range 0-18, 5 abstained, lead: rewrite_about)"
+  },
+  "engine/median": {
+    "job_search": "39 (uncapped 39, range 39-39, 0 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "41 (uncapped 41, range 41-41, 0 abstained, lead: describe_current_role)",
+    "sales": "33 (uncapped 33, range 33-33, 0 abstained, lead: rewrite_headline)",
+    "thought_leadership": "36 (uncapped 36, range 36-36, 0 abstained, lead: rewrite_headline)",
+    "hiring": "35 (uncapped 35, range 35-35, 0 abstained, lead: rewrite_about)"
+  },
+  "archetype/contractor": {
+    "job_search": "75 (uncapped 75, range 73-75, 1 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "77 (uncapped 77, range 75-78, 1 abstained, lead: describe_current_role)",
+    "sales": "78 (uncapped 78, range 77-79, 1 abstained, lead: rewrite_about)",
+    "thought_leadership": "77 (uncapped 77, range 75-78, 1 abstained, lead: rewrite_about)",
+    "hiring": "77 (uncapped 77, range 75-77, 1 abstained, lead: rewrite_about)"
+  },
+  "archetype/careerChanger": {
+    "job_search": "72 (uncapped 72, range 71-73, 1 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "77 (uncapped 77, range 75-77, 1 abstained, lead: describe_current_role)",
+    "sales": "67 (uncapped 67, range 65-68, 1 abstained, lead: rewrite_about)",
+    "thought_leadership": "66 (uncapped 66, range 65-67, 1 abstained, lead: rewrite_about)",
+    "hiring": "69 (uncapped 69, range 68-70, 1 abstained, lead: rewrite_about)"
+  },
+  "archetype/nurse": {
+    "job_search": "76 (uncapped 76, range 75-77, 1 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "82 (uncapped 82, range 80-83, 1 abstained, lead: describe_current_role)",
+    "sales": "70 (uncapped 70, range 69-71, 1 abstained, lead: rewrite_headline)",
+    "thought_leadership": "50 (uncapped 67, range 65-68, 1 abstained, lead: start_posting)",
+    "hiring": "72 (uncapped 72, range 70-73, 1 abstained, lead: rewrite_about)"
+  },
+  "archetype/aboutOnly": {
+    "job_search": "55 (uncapped 58, range 57-59, 1 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "62 (uncapped 62, range 60-63, 1 abstained, lead: describe_current_role)",
+    "sales": "74 (uncapped 74, range 72-74, 1 abstained, lead: rewrite_about)",
+    "thought_leadership": "75 (uncapped 75, range 73-76, 1 abstained, lead: rewrite_about)",
+    "hiring": "58 (uncapped 69, range 67-69, 1 abstained, lead: describe_current_role)"
+  },
+  "archetype/newGrad": {
+    "job_search": "60 (uncapped 60, range 60-60, 0 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "65 (uncapped 65, range 65-65, 0 abstained, lead: describe_current_role)",
+    "sales": "51 (uncapped 51, range 51-51, 0 abstained, lead: rewrite_about)",
+    "thought_leadership": "49 (uncapped 49, range 49-49, 0 abstained, lead: start_posting)",
+    "hiring": "54 (uncapped 54, range 54-54, 0 abstained, lead: rewrite_about)"
+  },
+  "archetype/unlistedCompany": {
+    "job_search": "62 (uncapped 62, range 61-63, 1 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "63 (uncapped 63, range 61-64, 1 abstained, lead: describe_current_role)",
+    "sales": "62 (uncapped 62, range 61-63, 1 abstained, lead: rewrite_about)",
+    "thought_leadership": "61 (uncapped 61, range 60-62, 1 abstained, lead: rewrite_about)",
+    "hiring": "63 (uncapped 63, range 61-64, 1 abstained, lead: rewrite_about)"
+  },
+  "extension/default": {
+    "job_search": "67 (uncapped 67, range 67-67, 0 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "74 (uncapped 74, range 74-74, 0 abstained, lead: describe_current_role)",
+    "sales": "65 (uncapped 65, range 65-65, 0 abstained, lead: rewrite_about)",
+    "thought_leadership": "63 (uncapped 63, range 63-63, 0 abstained, lead: start_posting)",
+    "hiring": "65 (uncapped 65, range 65-65, 0 abstained, lead: rewrite_about)"
+  },
+  "extension/withProjects": {
+    "job_search": "67 (uncapped 67, range 67-67, 0 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "74 (uncapped 74, range 74-74, 0 abstained, lead: describe_current_role)",
+    "sales": "65 (uncapped 65, range 65-65, 0 abstained, lead: rewrite_about)",
+    "thought_leadership": "63 (uncapped 63, range 63-63, 0 abstained, lead: start_posting)",
+    "hiring": "65 (uncapped 65, range 65-65, 0 abstained, lead: rewrite_about)"
+  },
+  "extension/noAbout": {
+    "job_search": "62 (uncapped 62, range 52-67, 6 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "68 (uncapped 68, range 58-73, 6 abstained, lead: describe_current_role)",
+    "sales": "60 (uncapped 60, range 46-69, 6 abstained, lead: rewrite_about)",
+    "thought_leadership": "56 (uncapped 56, range 44-66, 6 abstained, lead: start_posting)",
+    "hiring": "59 (uncapped 59, range 47-68, 6 abstained, lead: rewrite_about)"
+  },
+  "extension/noSkillsNoFeatured": {
+    "job_search": "65 (uncapped 65, range 60-68, 3 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "71 (uncapped 71, range 64-74, 3 abstained, lead: describe_current_role)",
+    "sales": "64 (uncapped 64, range 58-68, 3 abstained, lead: rewrite_about)",
+    "thought_leadership": "63 (uncapped 63, range 57-66, 3 abstained, lead: start_posting)",
+    "hiring": "64 (uncapped 64, range 59-67, 3 abstained, lead: rewrite_about)"
+  },
+  "extension/unlinkedEmployer": {
+    "job_search": "66 (uncapped 66, range 66-66, 0 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "73 (uncapped 73, range 73-73, 0 abstained, lead: describe_current_role)",
+    "sales": "65 (uncapped 65, range 65-65, 0 abstained, lead: rewrite_about)",
+    "thought_leadership": "63 (uncapped 63, range 63-63, 0 abstained, lead: start_posting)",
+    "hiring": "65 (uncapped 65, range 65-65, 0 abstained, lead: rewrite_about)"
+  },
+  "extension/framedOpenToWork": {
+    "job_search": "68 (uncapped 68, range 68-68, 0 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "74 (uncapped 74, range 74-74, 0 abstained, lead: describe_current_role)",
+    "sales": "69 (uncapped 69, range 69-69, 0 abstained, lead: rewrite_about)",
+    "thought_leadership": "66 (uncapped 66, range 66-66, 0 abstained, lead: start_posting)",
+    "hiring": "68 (uncapped 68, range 68-68, 0 abstained, lead: rewrite_about)"
+  },
+  "extension/noEducationNoRecs": {
+    "job_search": "65 (uncapped 65, range 62-67, 2 abstained, lead: describe_current_role)",
+    "recruiter_inbound": "72 (uncapped 72, range 69-74, 2 abstained, lead: describe_current_role)",
+    "sales": "64 (uncapped 64, range 62-65, 2 abstained, lead: rewrite_about)",
+    "thought_leadership": "62 (uncapped 62, range 60-63, 2 abstained, lead: start_posting)",
+    "hiring": "63 (uncapped 63, range 61-65, 2 abstained, lead: rewrite_about)"
+  },
+  "extension/noAboutNoExperience": {
+    "job_search": "87 (uncapped 87, range 36-95, 15 abstained, lead: rewrite_headline)",
+    "recruiter_inbound": "92 (uncapped 92, range 42-96, 15 abstained, lead: rewrite_headline)",
+    "sales": "69 (uncapped 69, range 34-85, 15 abstained, lead: rewrite_headline)",
+    "thought_leadership": "63 (uncapped 63, range 32-81, 15 abstained, lead: start_posting)",
+    "hiring": "73 (uncapped 73, range 33-88, 15 abstained, lead: start_posting)"
+  }
+}
